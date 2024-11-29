@@ -1,0 +1,12 @@
+https://alphafold.ebi.ac.uk/faq (How confident should I be in a prediction?)
+
+cif files have the pLDDT scores in
+	_ma_qa_metric_global.metric_value
+
+pdb ile format ref: https://www.cgl.ucsf.edu/chimera/docs/UsersGuide/tutorials/pdbintro.html
+
+R package for Protein Structure Analysis Workflow use for AlphaFold DB: https://cran.r-project.org/web/packages/protti/vignettes/protein_structure_workflow.html
+	keyword: pLDDT
+
+pLDDT ref
+	https://pmc.ncbi.nlm.nih.gov/articles/PMC3799472/
