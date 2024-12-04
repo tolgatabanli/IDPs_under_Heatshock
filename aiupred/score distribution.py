@@ -30,4 +30,6 @@ with open('aiupred_scores.p', 'rb') as fp:
 
 vals = concatenate(list(proteins.values()))
 plt.hist(vals, bins=100)
+plt.xlabel("Disorder scores")
+plt.title("Distribution of all disorder scores from AIUPred")
 plt.savefig("hist (bins_100) of all disorder scores.png")

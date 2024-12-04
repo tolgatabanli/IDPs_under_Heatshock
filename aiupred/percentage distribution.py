@@ -6,9 +6,9 @@ with open('aiupred_scores.p', 'rb') as fp:
     proteins = pickle.load(fp)
 
 percentages = dict()
-
+alpha = 0.5
 for name, disorder_array in proteins.items():
-    percentages[name] = (disorder_array > 0.5).sum() / len(disorder_array)
+    percentages[name] = (disorder_array > alpha).sum() / len(disorder_array)
 
 # Logit Transformation
 # arr = [np.atleast_1d(perc) for perc in percentages.values()]
@@ -19,5 +19,7 @@ for name, disorder_array in proteins.items():
 arr = [np.atleast_1d(perc) for perc in percentages.values()]
 arr = np.concatenate(arr)
 plt.hist(arr, bins=50)
+plt.xlabel("Percentage of residues > " + str(alpha))
+plt.title("Distribution of percentages of proteins")
 plt.show()
-plt.savefig("hist (bins_50) of percentage of proteins of residues alpha_0.5.png")
+#plt.savefig("hist (bins_50) of percentage of proteins of residues alpha_0.5.png")
