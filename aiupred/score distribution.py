@@ -17,13 +17,13 @@ fasta_sequences = SeqIO.parse(open(fasta_file), 'fasta')
 
 # i = 0
 # for fasta in fasta_sequences:
-#     name, sequence = fasta.id.split('|')[-1], str(fasta.seq)
+#     name, sequence = fasta.id.split('|')[1], str(fasta.seq)
 #     proteins[name] = aiupred_lib.predict_disorder(sequence, embedding_model, regression_model, device)
 #     i += 1
 #     print(i)
 
 # with open('aiupred_scores.p', 'wb') as pickle_file:
-#     pickle.dump(proteins, pickle_3file, protocol=pickle.HIGHEST_PROTOCOL)
+#     pickle.dump(proteins, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
 
 with open('aiupred_scores.p', 'rb') as fp:
     proteins = pickle.load(fp)
@@ -32,4 +32,5 @@ vals = concatenate(list(proteins.values()))
 plt.hist(vals, bins=100)
 plt.xlabel("Disorder scores")
 plt.title("Distribution of all disorder scores from AIUPred")
+# plt.show()
 plt.savefig("hist (bins_100) of all disorder scores.png")
