@@ -1,3 +1,8 @@
+library(janitor)
+library(biomaRt)
+library(tidyverse)
+library(UniProt.ws)
+
 dir <- here::here("alphafold cifs")
 files <- list.files(dir)
 
@@ -19,8 +24,31 @@ for (file in files) {
   i = i + 1
 }
 
-idps <- which(plddt_scores_cif < 50)
-names(idps)
+idps <- plddt_scores_cif[which(plddt_scores_cif < 50)]
 
+# Accession mapping
 
+## from Evi's file, produces 5 NAs
+id_mapping <- read_tsv("yeastMapping.tsv", col_names = TRUE) %>%
+  janitor::clean_names() %>%
+  dplyr::select(ensembl, uniprot_swissprot) %>%
+  separate_longer_delim(cols = uniprot_swissprot,
+                       delim = "|")
 
+idp_df <- idps %>% enframe()
+joined_mapping <- id_mapping %>%
+  left_join(idp_df, join_by(uniprot_swissprot == name))
+  
+
+# using biomaRt, produces 3 NAs
+ensembl_up_mapping <- useEnsembl(biomart = "genes", dataset = "scerevisiae_gene_ensembl") %>%
+  getBM(attributes = c("ensembl_gene_id", "uniprotswissprot"),
+      mart = .)
+
+joined_biomart <- ensembl_up_mapping %>%
+  right_join(idp_df, join_by(uniprotswissprot == name))                                
+
+# save joined table from biomaRt
+joined_biomart %>% drop_na() %>%
+  rename("lddt" = "value") %>%
+  write_tsv("idps_joined_ensembl_uniprot.tsv")
