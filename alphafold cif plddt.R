@@ -26,7 +26,9 @@ for (file in files) {
 
 idps <- plddt_scores_cif[which(plddt_scores_cif < 50)]
 
+
 # Accession mapping
+idp_df <- idps %>% enframe()
 
 ## from Evi's file, produces 5 NAs
 id_mapping <- read_tsv("yeastMapping.tsv", col_names = TRUE) %>%
@@ -35,12 +37,11 @@ id_mapping <- read_tsv("yeastMapping.tsv", col_names = TRUE) %>%
   separate_longer_delim(cols = uniprot_swissprot,
                        delim = "|")
 
-idp_df <- idps %>% enframe()
 joined_mapping <- id_mapping %>%
   left_join(idp_df, join_by(uniprot_swissprot == name))
   
 
-# using biomaRt, produces 3 NAs
+## using biomaRt, produces 3 NAs
 ensembl_up_mapping <- useEnsembl(biomart = "genes", dataset = "scerevisiae_gene_ensembl") %>%
   getBM(attributes = c("ensembl_gene_id", "uniprotswissprot"),
       mart = .)
@@ -51,4 +52,4 @@ joined_biomart <- ensembl_up_mapping %>%
 # save joined table from biomaRt
 joined_biomart %>% drop_na() %>%
   rename("lddt" = "value") %>%
-  write_tsv("idps_joined_ensembl_uniprot.tsv")
+  write_tsv("idps_from_alphafold_ensembl_uniprot.tsv")
