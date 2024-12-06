@@ -2,7 +2,6 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
-import csv
 
 with open('aiupred_scores.p', 'rb') as fp:
     proteins = pickle.load(fp)
@@ -24,9 +23,6 @@ for prot, scores in proteins.items():
     # plt.bar(bin_centers, stat, width=np.diff(bin_edges), align='center', edgecolor='black')
     # plt.show()
 
-# for prot, scores in proteins.items():
-#     proteins[prot] = np.median(scores)
-
 plt.hist(proteins.values(), bins=50)
 plt.xlabel("Disorder scores")
 plt.title("Distribution of binned(10) mode disorder scores from AIUPred")
@@ -36,17 +32,28 @@ plt.show()
 # save the dictionary in a tsv (protein_name, mode)
 csv = "\n".join([prot + '\t' + str(mode) for prot, mode in proteins.items()])
 with open("aiupred_modes_of_proteins.tsv", 'w') as output:
-    output.write("name_uniprot\tscore_mode\n")
+    output.write("uniprot\tmode\n")
     output.write(csv)
 
+# Means
+with open('aiupred_scores.p', 'rb') as fp:
+    proteins = pickle.load(fp)
+for prot, scores in proteins.items():
+    proteins[prot] = np.mean(scores)
+csv = "\n".join([prot + '\t' + str(mean) for prot, mean in proteins.items()])
+with open("aiupred_means_of_proteins.tsv", 'w') as output:
+    output.write("uniprot\tmean\n")
+    output.write(csv)
+plt.hist(proteins.values(), bins=50)
+plt.xlabel("Means of disorder scores of proteins")
+plt.title("Distribution of means")
+plt.show()
 
 # By majority vote with separation into two categories around a threshold
 with open('aiupred_scores.p', 'rb') as fp:
     proteins = pickle.load(fp)
-
 for prot, scores in proteins.items():
     proteins[prot] = np.sum(scores > 0.8) / scores.size
-
 csv = "\n".join([prot + '\t' + str(ratio) for prot, ratio in proteins.items()])
 with open("aiupred_majority_vote.tsv", 'w') as output:
     output.write("name_uniprot\tratio\n")
@@ -60,4 +67,3 @@ plt.show()
 vals = np.array([*proteins.values()])
 plt.hist(vals[vals < 0.1], bins=50)
 plt.show()
-
