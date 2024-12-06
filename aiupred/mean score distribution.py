@@ -56,7 +56,7 @@ for prot, scores in proteins.items():
     proteins[prot] = np.sum(scores > 0.8) / scores.size
 csv = "\n".join([prot + '\t' + str(ratio) for prot, ratio in proteins.items()])
 with open("aiupred_majority_vote.tsv", 'w') as output:
-    output.write("name_uniprot\tratio\n")
+    output.write("uniprot\tratio\n")
     output.write(csv)
 
 plt.hist(proteins.values(), bins=50)
