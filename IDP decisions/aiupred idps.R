@@ -39,4 +39,6 @@ read_tsv("IDP decisions/all_proteins_from_aiupred_with_vote.tsv") %>%
   filter(disorder_ratio > 0.5) %>%
   write_tsv("IDP decisions/idps_from_aiupred_vote_ensembl.tsv")
 
+# TODO: Mode also
+
 

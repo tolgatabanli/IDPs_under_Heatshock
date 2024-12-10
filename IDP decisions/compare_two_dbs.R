@@ -7,6 +7,8 @@ alphafold_all_proteins_local <- read_tsv("IDP decisions/all_proteins_from_alphaf
 alphafold_all_proteins_global <- read_tsv("IDP decisions/all_proteins_from_alphafold_global_ensembl.tsv")
 aiupred_all_proteins_mean <- read_tsv("IDP decisions/all_proteins_from_aiupred_with_mean.tsv") %>%
   mutate(mean_disorder = mean_disorder*100)
+aiupred_all_proteins_mode <- read_tsv("IDP decisions/all_proteins_from_aiupred_with_mode.tsv") %>%
+  mutate(mode_disorder = mode_disorder*100)
 
 # plot all proteins from two DBs against each other
 inner_join(alphafold_all_proteins_local, aiupred_all_proteins_mean) %>%

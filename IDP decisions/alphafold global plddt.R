@@ -42,7 +42,7 @@ ensembl_up_mapping %>%
   write_tsv("IDP decisions/all_proteins_from_alphafold_global_ensembl.tsv")
 
 
-# IDPs
+# IDPs, threshold according to alphafold FAQs
 read_tsv("IDP decisions/all_proteins_from_alphafold_global_ensembl.tsv") %>%
   filter(lddt < 50) %>%
   write_tsv("IDP decisions/idps_from_global_plddt_scores.tsv")
