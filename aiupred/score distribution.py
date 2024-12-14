@@ -12,7 +12,7 @@ sequence = ''
 
 proteins = dict()
 
-fasta_file = r"C:\Users\dell\Desktop\R with Yeast\Second Semester\uniprotkb_proteome_UP000002311_2024_11_29.fasta"
+fasta_file = r"../uniprotkb_proteome_UP000002311_2024_11_29.fasta"
 fasta_sequences = SeqIO.parse(open(fasta_file), 'fasta')
 
 # i = 0
@@ -32,5 +32,5 @@ vals = concatenate(list(proteins.values()))
 plt.hist(vals, bins=100)
 plt.xlabel("Disorder scores")
 plt.title("Distribution of all disorder scores from AIUPred")
-# plt.show()
-plt.savefig("hist (bins_100) of all disorder scores.png")
+plt.show()
+# plt.savefig("hist (bins_100) of all disorder scores.png")
