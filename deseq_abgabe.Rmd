@@ -1,0 +1,106 @@
+---
+title: "DESeq on Heat Shock"
+author: "Tolga Tabanlı"
+date: "2024-12-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning=F, message=F}
+library(DESeq2)
+library(tidyverse)
+library(edgeR)
+library(ggpubr)
+library(plotly)
+```
+
+# Reading the hat shock data matrix and the mapping for the samples.
+
+```{r, warning=F, message=F}
+colData <- read_tsv("sample_mapping.tsv", col_names = T) %>%
+  mutate(across(everything(), as.factor)) %>%
+  column_to_rownames(var = "sample")
+
+heatshock_counts <- read_tsv(here::here("complex_yeast_heatshock.tsv"), col_names = T) %>%
+  column_to_rownames(var = "gene_id") %>%
+  relocate(rownames(colData))
+
+knockouts <- colData %>%
+  select(knockout) %>%
+  distinct() %>%
+  pull() %>%
+  relevel("Wildtype")
+```
+
+Following is the function used to apply deseq() on with the given parameters
+and saving the plots. All are compared with 25C and t = 0 as reference with
+their respective strains/knockouts.
+
+```{r, warning=F, message=F}
+# returns two plots comparing with temp=25 and t=0 of the respective strain
+multiple_deseq <- function(countData, colData, knock, temp) {
+  subColData <- colData %>%
+    filter(knockout == knock) %>%
+    filter((temperature == 25 & time == 0) | temperature == temp)
+  
+  plots <- list()
+  i = 1
+  for (t in c(10, 30)) {
+    subsample <- subColData %>%
+      filter(time %in% c(0, t))
+    
+    subcounts <- heatshock_counts %>% select(rownames(subsample))
+    
+    dds <- DESeqDataSetFromMatrix(countData = subcounts,
+                                  colData = subsample,
+                                  design = ~ time)
+    deseq <- DESeq(dds, quiet = TRUE)
+    res <- results(deseq)
+    res <- res %>%
+      pluck("listData") %>%
+      as_tibble() %>%
+      drop_na()
+    plots[[i]] <- ggplot(data = res,
+                       aes(x = log2FoldChange, y = -log10(pvalue),
+                           colour = padj < 0.05)) +
+      geom_point() +
+      # scale_x_continuous(limits = c(-3,3)) +
+      # scale_y_continuous(limits = c(0, 20))
+      labs(title = paste(knock, temp, "C, t =", t))
+    i <- i + 1
+  }
+  return(plots)
+}
+```
+
+# DESeq
+
+Here, the plots from the DESeq are drawn according to temperature and time.
+The titles of the plots indicate the group compared against wildtype together
+with the temperature and time info.
+
+```{r, warning=F, message=F, fig.width = 10, fig.height = 30}
+# DESeq
+temps <- c(37, 42)
+knockouts <- colData %>%
+  select(knockout) %>%
+  unique() %>%
+  pull()
+
+combs <- expand.grid(temperature = temps, knockout = knockouts)
+plots <- list()
+for (row in 1:nrow(combs)) {
+  plots[[row]] <- multiple_deseq(heatshock_counts,
+                                 colData,
+                                 combs[row,"knockout"],
+                                 combs[row,"temperature"])
+}
+
+plots <- unlist(plots, recursive = FALSE)
+ggarrange(plotlist = plots, ncol = 2, nrow = 8, common.legend = T)
+
+```
+
