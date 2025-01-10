@@ -1,6 +1,7 @@
 library(tidyverse)
 library(UpSetR)
 library(gprofiler2)
+library(ggpubr)
 
 idps <- readRDS("IDP decisions/commons_modes.Rds")
 deseq_results <- readRDS("deseq_results.Rds") %>% map(as.data.frame)
@@ -9,13 +10,21 @@ expr_direction <- deseq_results %>%
   map(arrange, padj) %>%
   map(~ dplyr::select(.x, log2FoldChange, padj)) %>%
   map(~ filter(.x, padj < 0.05)) %>%
-  map(~ mutate(.x, regulation = case_when(
+  map(~ mutate(.x, direction = case_when(
     log2FoldChange < 0 ~ "down",
     log2FoldChange > 0 ~ "up"
   )))
 
+plots <- list()
+for (i in seq_along(expr_direction)) {
+  plots[[i]] <- expr_direction[[i]] %>%
+    ggplot(aes(x = direction, fill = direction)) +
+    geom_bar() +
+    scale_fill_manual(values = c("down" = "#00bfc4",
+                                 "up" = "#f9766e"))
+}
+ggarrange(plotlist = plots, ncol = 2, nrow = 8, common.legend = T)
 
-  
   
 
 deseq_sig_idps <- deseq_results %>%
