@@ -3,8 +3,22 @@ library(UpSetR)
 library(gprofiler2)
 
 idps <- readRDS("IDP decisions/commons_modes.Rds")
-deseq_sig_idps <- readRDS("deseq_results.Rds") %>%
-  map(as.data.frame) %>%
+deseq_results <- readRDS("deseq_results.Rds") %>% map(as.data.frame)
+expr_direction <- deseq_results %>%
+  map(drop_na) %>%
+  map(arrange, padj) %>%
+  map(~ dplyr::select(.x, log2FoldChange, padj)) %>%
+  map(~ filter(.x, padj < 0.05)) %>%
+  map(~ mutate(.x, regulation = case_when(
+    log2FoldChange < 0 ~ "down",
+    log2FoldChange > 0 ~ "up"
+  )))
+
+
+  
+  
+
+deseq_sig_idps <- deseq_results %>%
   map(drop_na) %>%
   map(arrange, padj) %>%
   map(~ rownames(.x[.x$padj < 0.05 & rownames(.x) %in% idps, ]))
@@ -12,8 +26,7 @@ deseq_sig_idps <- readRDS("deseq_results.Rds") %>%
 all_sig <- purrr::reduce(deseq_sig_idps, union)
 common_sig <- purrr::reduce(deseq_sig_idps, intersect)
 
-idp_with_p <- readRDS("deseq_results.Rds") %>%
-  map(as.data.frame) %>%
+idp_with_p <- deseq_results %>%
   map(drop_na) %>%
   map(select, "padj") %>%
   imap(~ rename(.x, !!paste0("padj_", .y) := padj)) %>%
