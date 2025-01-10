@@ -15,17 +15,36 @@ expr_direction <- deseq_results %>%
     log2FoldChange > 0 ~ "up"
   )))
 
+# barplot of direction for all genes
 plots <- list()
 for (i in seq_along(expr_direction)) {
+  name_exp <- names(expr_direction[i])
   plots[[i]] <- expr_direction[[i]] %>%
     ggplot(aes(x = direction, fill = direction)) +
     geom_bar() +
     scale_fill_manual(values = c("down" = "#00bfc4",
-                                 "up" = "#f9766e"))
+                                 "up" = "#f9766e")) +
+    labs(title = name_exp)
 }
 ggarrange(plotlist = plots, ncol = 2, nrow = 8, common.legend = T)
+ggsave("significant plots/up_or_down.png", device = "png", height = 25, width = 10)
 
-  
+# barplot of direction for IDPs
+plots <- list()
+for (i in seq_along(expr_direction)) {
+  name_exp <- names(expr_direction[i])
+  plots[[i]] <- expr_direction[[i]] %>%
+    rownames_to_column() %>%
+    filter(rowname %in% idps) %>%
+    ggplot(aes(x = direction, fill = direction)) +
+    geom_bar() +
+    scale_fill_manual(values = c("down" = "#00bfc4",
+                                 "up" = "#f9766e")) +
+    labs(title = name_exp)
+}
+ggarrange(plotlist = plots, ncol = 2, nrow = 8, common.legend = T)
+ggsave("significant plots/up_or_down_idps.png", device = "png", height = 25, width = 10)
+
 
 deseq_sig_idps <- deseq_results %>%
   map(drop_na) %>%
