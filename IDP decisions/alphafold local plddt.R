@@ -33,8 +33,6 @@ for (file in files) {
 }
 saveRDS(local_plddts, "IDP decisions/local_plddts.Rds")
 
-
-
 local_plddts <- readRDS("IDP decisions/local_plddts.Rds")
 
 ensembl_up_mapping <- readRDS("IDP decisions/ensembl_up_mapping.Rds")
@@ -44,11 +42,21 @@ local_plddts %>%
   mutate(mean_plddt = mean(unlist(scores))) %>%
   ungroup() %>%
   inner_join(ensembl_up_mapping, join_by(uniprot == uniprotswissprot)) %>%
-  select(ensembl_gene_id, mean_plddt) %>%
-  write_tsv("IDP decisions/all_proteins_from_alphafold_local_ensembl.tsv")
+  dplyr::select(ensembl_gene_id, mean_plddt) %>%
+  write_tsv("IDP decisions/all_proteins_from_alphafold_with_mean.tsv")
 
 # IDPs
-means <- read_tsv("IDP decisions/all_proteins_from_alphafold_local_ensembl.tsv")
+means <- read_tsv("IDP decisions/all_proteins_from_alphafold_with_mean.tsv")
 means %>%
   filter(mean_plddt < 50) %>%
   write_tsv("IDP decisions/idps_from_local_plddt_scores.tsv")
+
+## according to percentage_alpha60
+local_plddts %>%
+  mutate(alphafold_perc_60 = sapply(scores, function(x) {
+    sum(x < 60) / length(x)
+  })) %>%
+  inner_join(ensembl_up_mapping, join_by(uniprot == uniprotswissprot)) %>%
+  dplyr::select(ensembl_gene_id, alphafold_perc_60) %>%
+  write_tsv("IDP decisions/all_proteins_from_alphafold_with_perc_alpha60.tsv")
+

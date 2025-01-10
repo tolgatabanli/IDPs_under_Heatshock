@@ -35,7 +35,7 @@ with open("aiupred_modes_of_proteins.tsv", 'w') as output:
     output.write("uniprot\tmode\n")
     output.write(csv)
 
-# Means TODO: TWO COLORS!!!!
+# Means
 with open('aiupred_scores.p', 'rb') as fp:
     proteins = pickle.load(fp)
 for prot, scores in proteins.items():
@@ -82,4 +82,20 @@ plt.hist(proteins.values(), bins=50)
 plt.xlabel("Percent disorder")
 plt.title("Distribution of percent$_{\\alpha=80}$ disorders of proteins")
 plt.savefig("hist (bins_50) of percent_alpha80 disorder scores.png")
+plt.show()
+
+# By percent disorder with threshold 0.6
+with open('aiupred_scores.p', 'rb') as fp:
+    proteins = pickle.load(fp)
+for prot, scores in proteins.items():
+    proteins[prot] = np.sum(scores > 0.6) / scores.size
+csv = "\n".join([prot + '\t' + str(ratio) for prot, ratio in proteins.items()])
+with open("aiupred_perc_of_proteins_alpha60.tsv", 'w') as output:
+    output.write("uniprot\tperc\n")
+    output.write(csv)
+
+plt.hist(proteins.values(), bins=50)
+plt.xlabel("Percent disorder")
+plt.title("Distribution of percent$_{\\alpha=60}$ disorders with AIUPred")
+plt.savefig("hist (bins_50) of percent_alpha60 disorder aiupred.png")
 plt.show()

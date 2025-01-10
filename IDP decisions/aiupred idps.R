@@ -13,25 +13,33 @@ ensembl_up_mapping <- readRDS("IDP decisions/ensembl_up_mapping.Rds")
 aiupred_all_proteins_mode <- read_tsv(here::here("aiupred/aiupred_modes_of_proteins.tsv"))
 aiupred_all_proteins_mean <- read_tsv(here::here("aiupred/aiupred_means_of_proteins.tsv"))
 aiupred_all_proteins_perc_50 <- read_tsv(here::here("aiupred/aiupred_perc_of_proteins_alpha50.tsv"))
+aiupred_all_proteins_perc_60 <- read_tsv(here::here("aiupred/aiupred_perc_of_proteins_alpha60.tsv"))
 aiupred_all_proteins_perc_80 <- read_tsv(here::here("aiupred/aiupred_perc_of_proteins_alpha80.tsv"))
 
 aiupred_all_proteins_mode %>%
   inner_join(ensembl_up_mapping, join_by(uniprot == uniprotswissprot)) %>%
-  select(ensembl_gene_id, mode) %>%
+  dplyr::select(ensembl_gene_id, mode) %>%
   dplyr::rename("mode_disorder" = "mode") %>%
   write_tsv("IDP decisions/all_proteins_from_aiupred_with_mode.tsv")
 aiupred_all_proteins_mean %>%
   inner_join(ensembl_up_mapping, join_by(uniprot == uniprotswissprot)) %>%
-  select(ensembl_gene_id, mean) %>%
+  dplyr::select(ensembl_gene_id, mean) %>%
   dplyr::rename("mean_disorder" = "mean") %>%
   write_tsv("IDP decisions/all_proteins_from_aiupred_with_mean.tsv")
 aiupred_all_proteins_perc_50 %>%
   inner_join(ensembl_up_mapping, join_by(uniprot == uniprotswissprot)) %>%
-  select(ensembl_gene_id, perc) %>%
+  dplyr::select(ensembl_gene_id, perc) %>%
+  rename(aiupred_perc_50 = perc) %>%
   write_tsv("IDP decisions/all_proteins_from_aiupred_with_perc_alpha50.tsv")
+aiupred_all_proteins_perc_60 %>%
+  inner_join(ensembl_up_mapping, join_by(uniprot == uniprotswissprot)) %>%
+  dplyr::select(ensembl_gene_id, perc) %>%
+  rename(aiupred_perc_60 = perc) %>%
+  write_tsv("IDP decisions/all_proteins_from_aiupred_with_perc_alpha60.tsv")
 aiupred_all_proteins_perc_80 %>%
   inner_join(ensembl_up_mapping, join_by(uniprot == uniprotswissprot)) %>%
-  select(ensembl_gene_id, perc) %>%
+  dplyr::select(ensembl_gene_id, perc) %>%
+  rename(aiupred_perc_80 = perc) %>%
   write_tsv("IDP decisions/all_proteins_from_aiupred_with_perc_alpha80.tsv")
 
 
@@ -43,9 +51,12 @@ read_tsv("IDP decisions/all_proteins_from_aiupred_with_mode.tsv") %>%
   filter(mode_disorder > 0.8) %>%
   write_tsv("IDP decisions/idps_from_aiupred_mode_ensembl.tsv")
 read_tsv("IDP decisions/all_proteins_from_aiupred_with_perc_alpha50.tsv") %>%
-  filter(perc > 0.5) %>%
+  filter(aiupred_perc_50 > 0.5) %>%
   write_tsv("IDP decisions/idps_from_aiupred_perc_alpha50_ensembl.tsv")
+read_tsv("IDP decisions/all_proteins_from_aiupred_with_perc_alpha60.tsv") %>%
+  filter(aiupred_perc_60 > 0.5) %>%
+  write_tsv("IDP decisions/idps_from_aiupred_perc_alpha60_ensembl.tsv")
 read_tsv("IDP decisions/all_proteins_from_aiupred_with_perc_alpha80.tsv") %>%
-  filter(perc > 0.5) %>%
+  filter(aiupred_perc_80 > 0.5) %>%
   write_tsv("IDP decisions/idps_from_aiupred_perc_alpha80_ensembl.tsv")
 

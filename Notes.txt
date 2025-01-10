@@ -10,3 +10,10 @@ R package for Protein Structure Analysis Workflow use for AlphaFold DB: https://
 
 pLDDT ref
 	https://pmc.ncbi.nlm.nih.gov/articles/PMC3799472/
+
+
+To-dos:
+	Eren: Compare IDPs expression directions (up and down) in different deseq comparisons
+	Eren: Gene set enrichment for significant IDPs in deseq comparisons
+	
+	Tolga: Correct volcano plot labels!
