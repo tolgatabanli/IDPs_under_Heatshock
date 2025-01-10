@@ -161,6 +161,9 @@ gost(commons,
 
 
 
+
+
+
 # PCA
 library(factoextra)
 library(corrr)

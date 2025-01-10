@@ -10,6 +10,7 @@ deseq_sig_idps <- readRDS("deseq_results.Rds") %>%
   map(~ rownames(.x[.x$padj < 0.05 & rownames(.x) %in% idps, ]))
 
 all_sig <- purrr::reduce(deseq_sig_idps, union)
+common_sig <- purrr::reduce(deseq_sig_idps, intersect)
 
 idp_with_p <- readRDS("deseq_results.Rds") %>%
   map(as.data.frame) %>%
@@ -47,5 +48,11 @@ reduce(deseq_sig_idps, intersect) %>%
 gost_multi_query <- gost(query = deseq_sig_idps, multi_query = T,
      organism = "scerevisiae",
      correction_method = "bonferroni")
+
+gost(all_sig,
+     ordered_query = T,
+     organism = "scerevisiae",
+     correction_method = "bonferroni") %>%
+  gostplot()
 
 
