@@ -51,20 +51,26 @@ disprot_idps %>%
   geom_histogram() +
   labs(title = "Mode of Disorder of DisProt IDPs")
 
-# Change of the ratio of DisProt IDPs with disorder_mode > 60
-# with disorder_content threshold
-disorder_content_thresholds <- seq(0,100,5)
-total_num <- nrow(disprot_idps)
-ratio_alpha60 <- c()
-i <- 1
-for (threshold in disorder_content_thresholds) {
-  df <- disprot_idps %>%
-    filter(disorder_content > threshold)
-  # disorder score ratios:
-  ratio_alpha60[i] <- df %>%
-    filter(mode_plddt > 60) %>%
-    nrow() %>%
-    `/`(nrow(df))
-  i <- i + 1
-}
-plot(disorder_content_range, ratio_alpha60)
+# Scatter pLDDT and disorder scores of real IDPs
+library(reticulate)
+local_plddts <- readRDS("IDP decisions/local_plddts.Rds") %>%
+  rename(local_plddts = scores)
+source_python("aiupred/read_pickle.py") # special script to read pickles
+pickle_data <- read_pickle("aiupred/aiupred_scores.p") # interface
+
+local_disorders <- tibble(pickle_data) %>%
+  mutate(uniprot = names(pickle_data)) %>%
+  rename(local_disorder = pickle_data)
+  
+# Todo:
+read_tsv("DisProt/DisProt release_2024_12.tsv") %>%
+  select(acc, disorder_content) %>%
+  rename(uniprot = acc) %>%
+  distinct() %>%
+  inner_join(local_plddts) %>%
+  inner_join(local_disorders) %>%
+  select(local_plddts, local_disorder) %>%
+  map(reduce, c) %>%
+  data.frame() %>%
+  ggplot(aes(y = local_disorder, x = local_plddts)) +
+  geom_point()
