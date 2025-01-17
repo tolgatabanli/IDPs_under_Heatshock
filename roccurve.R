@@ -8,6 +8,12 @@ prot_disorder <- read_tsv("IDP decisions/all_proteins_from_aiupred_with_mode.tsv
   mutate(mode_disorder = mode_disorder * 100) %>%
   arrange(desc(mode_disorder))
 
+prot_plddt <- read_tsv("IDP decisions/all_proteins_from_alphafold_with_mode.tsv") %>%
+  # arrange(mode_plddt) %>%
+  filter(mode_plddt < 60)
+
+prots <- inner_join(prot_disorder, prot_plddt)
+
 ggplot(prot_disorder, aes(x = mode_disorder)) +
   geom_histogram()
 
@@ -43,4 +49,4 @@ for (thr in thresholds) {
   ratios <- c(ratios, n_sig / n_total)
 }
 
-plot(thresholds, ratios)
+plot(thresholds, ratios, type = "l")
