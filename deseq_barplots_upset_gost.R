@@ -2,6 +2,7 @@ library(tidyverse)
 library(UpSetR)
 library(gprofiler2)
 library(ggpubr)
+library(janitor)
 
 # PREPARE
 
@@ -67,16 +68,8 @@ deseq_sig_idps <- deseq_results %>%
   map(arrange, padj) %>%
   map(~ rownames(.x[.x$padj < 0.05 & rownames(.x) %in% idps, ]))
 
-all_sig <- purrr::reduce(deseq_sig_idps, union)
-common_sig <- purrr::reduce(deseq_sig_idps, intersect)
 
-idp_with_p <- deseq_results %>%
-  map(drop_na) %>%
-  map(select, "padj") %>%
-  imap(~ rename(.x, !!paste0("padj_", .y) := padj)) %>%
-  map(rownames_to_column) %>%
-  purrr::reduce(inner_join, by = "rowname") %>%
-  column_to_rownames()
+
   
 
 dev.off()
@@ -91,29 +84,41 @@ upset(fromList(deseq_sig_idps), sets = names(deseq_sig_idps),
       text.scale = c(1.7,1,1.3,1,1,1.3))
 dev.off()
 
-gost_list <- list()
-
-for (sigs in deseq_sig_idps) {
-  gost(query = sigs,
-       organism = "scerevisiae",
-       correction_method = "bonferroni",
-       ordered_query = F)
-  break
-}
-
-purrr::reduce(deseq_sig_idps, dplyr::intersect) %>%
-  gost(query = ., organism = "scerevisiae",
-       correction_method = "bonferroni", ordered_query = F) %>%
-  gostplot()
-
-gost_multi_query <- gost(query = deseq_sig_idps, multi_query = T,
-     organism = "scerevisiae",
-     correction_method = "bonferroni")
-
-gost(all_sig,
-     ordered_query = T,
-     organism = "scerevisiae",
-     correction_method = "bonferroni") %>%
-  gostplot()
 
 
+set_base_url("https://biit.cs.ut.ee/gprofiler_beta") # for when the server's down
+
+gost_res <- deseq_sig_idps %>%
+  janitor::clean_names() %>%
+  map(~ gost(query = .x,
+             organism = "scerevisiae",
+             correction_method = "bonferroni"))
+
+# GostTable
+gost_res %>%
+  map(`$`(result) %>%
+        as.data.frame() %>%
+        arrange(p_value) %>%
+        select(term_id, term_name, p_value) %>%
+        dplyr::slice(1:10)) %>%
+  iwalk(~ publish_gosttable(gostres = .x,
+                           show_columns = c("term_name"),
+                           filename = paste0("gosttables/", .y, ".png")))
+
+# GostPlots
+terms <- gost_res %>%
+  map(~ `$`(.x, "result")) %>%
+  map(pull, term_id) %>%
+  purrr::reduce(base::union)
+
+gost_res %>%
+  map(~ {
+    .x$result <- arrange(.x$result, p_value) %>%
+      dplyr::slice(1:10)
+    print(.x)
+    .x
+  }) %>%
+  map(~ gostplot(.x, interactive = F)) %>%
+  iwalk(~ publish_gostplot(p = .x,
+                           filename = paste0("gostplots/", .y, ".png"),
+                           highlight_terms = terms))
