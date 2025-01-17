@@ -1,6 +1,6 @@
 library(tidyverse)
 
-local_plddts <- readRDS("IDP decisions/local_plddts.RDS")
+local_plddts <- readRDS("IDP decisions/local_plddts.Rds")
 
 # save in csv
 all_scores <- local_plddts %>% select(scores) %>% pull() %>%
