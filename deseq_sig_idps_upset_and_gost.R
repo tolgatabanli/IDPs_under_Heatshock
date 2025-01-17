@@ -3,6 +3,23 @@ library(UpSetR)
 library(gprofiler2)
 library(ggpubr)
 
+# PREPARE
+
+convert_to_counts <- function(df) {
+  n_total <- df %>%
+    group_by(direction) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    mutate(group = paste0("Total ", direction))
+  
+  n_idp <- df %>%
+    filter(idp == TRUE) %>%
+    group_by(direction) %>%
+    summarise(count = n(), .groups = "drop") %>%
+    mutate(group = paste0("IDP ", direction))
+  
+  bind_rows(n_total, n_idp)
+}
+
 idps <- readRDS("IDP decisions/commons_modes.Rds")
 deseq_results <- readRDS("deseq_results.Rds") %>% map(as.data.frame)
 expr_direction <- deseq_results %>%
@@ -11,39 +28,38 @@ expr_direction <- deseq_results %>%
   map(~ dplyr::select(.x, log2FoldChange, padj)) %>%
   map(~ filter(.x, padj < 0.05)) %>%
   map(~ mutate(.x, direction = case_when(
-    log2FoldChange < 0 ~ "down",
-    log2FoldChange > 0 ~ "up"
-  )))
+    log2FoldChange < 0 ~ "Down",
+    log2FoldChange > 0 ~ "Up"
+  ))) %>%
+  map(rownames_to_column) %>%
+  map(~ mutate(.x, idp = case_when(
+    rowname %in% idps ~ TRUE,
+    !(rowname %in% idps) ~ FALSE
+  ))) %>%
+  map_dfr(convert_to_counts, .id = "dataset") %>%
+  mutate(group = factor(group, levels = c("Total Up", "Total Down",
+                                          "IDP Up", "IDP Down")))
 
-# barplot of direction for all genes
-plots <- list()
-for (i in seq_along(expr_direction)) {
-  name_exp <- names(expr_direction[i])
-  plots[[i]] <- expr_direction[[i]] %>%
-    ggplot(aes(x = direction, fill = direction)) +
-    geom_bar() +
-    scale_fill_manual(values = c("down" = "#00bfc4",
-                                 "up" = "#f9766e")) +
-    labs(title = name_exp)
-}
-ggarrange(plotlist = plots, ncol = 2, nrow = 8, common.legend = T)
-ggsave("significant plots/up_or_down.png", device = "png", height = 25, width = 10)
+ggplot(expr_direction, aes(x = group, y = count, fill = group)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~dataset, scales = "free") +
+  labs(
+    title = "Comparison of Total and IDP Regulation",
+    x = "Direction of Regulation in Total vs IDP",
+    y = "Count",
+    fill = "Category"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank()) +
+  scale_fill_manual(values = c(
+    "IDP Up" = "blue",
+    "Total Up" = "lightblue",
+    "IDP Down" = "red",
+    "Total Down" = "pink"
+  ))
 
-# barplot of direction for IDPs
-plots <- list()
-for (i in seq_along(expr_direction)) {
-  name_exp <- names(expr_direction[i])
-  plots[[i]] <- expr_direction[[i]] %>%
-    rownames_to_column() %>%
-    filter(rowname %in% idps) %>%
-    ggplot(aes(x = direction, fill = direction)) +
-    geom_bar() +
-    scale_fill_manual(values = c("down" = "#00bfc4",
-                                 "up" = "#f9766e")) +
-    labs(title = name_exp)
-}
-ggarrange(plotlist = plots, ncol = 2, nrow = 8, common.legend = T)
-ggsave("significant plots/up_or_down_idps.png", device = "png", height = 25, width = 10)
+
+ggsave("significant plots/expr_all_vs_idps.png", device = "png", height = 25, width = 10)
 
 
 deseq_sig_idps <- deseq_results %>%
