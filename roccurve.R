@@ -90,7 +90,9 @@ for (cond in names(deseq_all)) {
 ratios %>%
   ggplot(aes(x = thr, y = ratio)) +
   geom_line() +
-  facet_wrap(~ cond)
+  facet_wrap(~ cond) +
+  xlab("Cut-off") +
+  ylab("Ratio (Significant IDP / All IDPs in that Condition)")
 
 
 
