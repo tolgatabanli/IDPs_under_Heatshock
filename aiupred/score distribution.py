@@ -1,6 +1,6 @@
-from numpy import mean, array, concatenate
+from numpy import concatenate
 import matplotlib.pyplot as plt
-import pickle as pickle
+import pickle
 
 import aiupred_lib
 from Bio import SeqIO
