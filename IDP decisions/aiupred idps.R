@@ -48,7 +48,7 @@ read_tsv("IDP decisions/all_proteins_from_aiupred_with_mean.tsv") %>%
   filter(mean_disorder > 0.8) %>%
   write_tsv("IDP decisions/idps_from_aiupred_mean_ensembl.tsv")
 read_tsv("IDP decisions/all_proteins_from_aiupred_with_mode.tsv") %>%
-  filter(mode_disorder > 0.8) %>%
+  filter(mode_disorder > 0.6) %>%
   write_tsv("IDP decisions/idps_from_aiupred_mode_ensembl.tsv")
 read_tsv("IDP decisions/all_proteins_from_aiupred_with_perc_alpha50.tsv") %>%
   filter(aiupred_perc_50 > 0.5) %>%
