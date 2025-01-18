@@ -62,7 +62,10 @@ ggplot(expr_direction, aes(x = group, y = count, fill = group)) +
 
 ggsave("significant plots/expr_all_vs_idps.png", device = "png", height = 15, width = 20)
 
-
+deseq_sig_all <- deseq_results %>%
+  map(drop_na) %>%
+  map(arrange, padj) %>%
+  map(~ rownames(.x[.x$padj < 0.05, ]))
 deseq_sig_idps <- deseq_results %>%
   map(drop_na) %>%
   map(arrange, padj) %>%
@@ -73,14 +76,14 @@ deseq_sig_idps <- deseq_results %>%
   
 
 dev.off()
-png("significant plots/upset(ordered_freq)_from_deseq_on_commons_modes.png", width = 1920, height = 1080, res = 150)
+png("significant plots/upset(ordered_degree)_from_deseq_on_commons_modes.png", width = 1920, height = 1080, res = 150)
 upset(fromList(deseq_sig_idps), sets = names(deseq_sig_idps),
       keep.order = T,
       nsets = length(deseq_sig_idps),
       point.size = 3, line.size = 1,
       mainbar.y.label = "Significant IDP Intersection",
       sets.x.label = "Number of IDPs ",
-      order.by = c("freq"),
+      order.by = c("degree"),
       text.scale = c(1.7,1,1.3,1,1,1.3))
 dev.off()
 
@@ -93,18 +96,74 @@ gost_res <- deseq_sig_idps %>%
   janitor::clean_names() %>%
   map(~ gost(query = .x,
              organism = "scerevisiae",
-             correction_method = "bonferroni"))
+             correction_method = "fdr"))
 
 # GostTable
-gost_res %>%
-  map(`$`(result) %>%
+generate_collapsible_panels <- function(conditions, query_sizes) {
+  html_panels <- lapply(seq_along(conditions), function(i) {
+    condition_name <- names(conditions)[i]
+    query_size <- query_sizes[i]
+    condition_table <- conditions[[i]] %>%
+      select(term_id, term_name, p_value, term_size, intersection_size) %>%
+      kbl(
+        format = "html", 
+        col.names = c("Term ID", "Term Name", "p-value", "Term Size", "Intersection Size")
+      ) %>%
+      kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover", "condensed"), font_size = 12)
+    
+    # Create collapsible panel HTML
+    paste0(
+      "<div class='panel panel-default'>",
+      "<div class='panel-heading'>",
+      "<h4 class='panel-title'>",
+      "<a data-toggle='collapse' href='#collapse", i, "'>",
+        condition_name, " with ", query_size, " queries",
+      "</a>",
+      "</h4>",
+      "</div>",
+      "<div id='collapse", i, "' class='panel-collapse collapse'>",
+      "<div class='panel-body'>", condition_table, "</div>",
+      "</div>",
+      "</div>"
+    )
+  })
+  paste0(html_panels, collapse = "\n")
+}
+
+conditions <- gost_res %>%
+  map(~ `$`(.x, "result") %>%
         as.data.frame() %>%
         arrange(p_value) %>%
-        select(term_id, term_name, p_value) %>%
-        dplyr::slice(1:10)) %>%
-  iwalk(~ publish_gosttable(gostres = .x,
-                           show_columns = c("term_name"),
-                           filename = paste0("gosttables/", .y, ".png")))
+        select(term_id, term_name, term_size, intersection_size, p_value) %>%
+        filter(term_size < 50) %>%
+        arrange(desc(intersection_size), term_size, p_value) %>%
+        dplyr::slice(1:10)
+  )
+query_sizes <- deseq_sig_idps %>%
+  map(length) %>% unlist() %>% unname()
+
+# Generate collapsible HTML for all conditions
+html_content <- paste0(
+  "<!DOCTYPE html>
+  <html lang='en'>
+  <head>
+    <meta charset='UTF-8'>
+    <title>Condition Comparison</title>
+    <link rel='stylesheet' href='https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css'>
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js'></script>
+    <script src='https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js'></script>
+  </head>
+  <body>
+  <div class='container'>
+  <h1>Comparison of Conditions</h1>",
+  generate_collapsible_panels(conditions, query_sizes),
+  "</div>
+  </body>
+  </html>"
+)
+
+# Save the combined HTML
+write(html_content, file = "gosttables/combined_kable_comparison.html")
 
 # GostPlots
 terms <- gost_res %>%
@@ -131,18 +190,24 @@ gost_res <- deseq_sig_idps %>%
              organism = "scerevisiae",
              custom_bg = idps,
              correction_method = "bonferroni"))
+terms <- gost_res %>%
+  compact() %>%
+  map(~ `$`(.x, "result")) %>%
+  map(dplyr::pull, term_id) %>%
+  purrr::reduce(base::union)
 
 gost_res %>%
   compact() %>%
   map(~ gostplot(.x, interactive = F)) %>%
   iwalk(~ publish_gostplot(p = .x,
-                           filename = paste0("gostplots_idp_bg/", .y, ".png")))
+                           filename = paste0("gostplots_idp_bg/", .y, ".png"),
+                           highlight_terms = terms))
 
 # Wildtype 42_30 minus Double_42_30
-wt_heatshock <- base::setdiff(deseq_sig_idps[["Wildtype_42_10"]],
-                              deseq_sig_idps[["Wildtype_37_10"]])
-exp_heatshock <- base::setdiff(deseq_sig_idps[["MSN24.KO_42_10"]],
-                               deseq_sig_idps[["MSN24.KO_37_10"]])
+wt_heatshock <- setdiff(deseq_sig_idps[["Wildtype_42_10"]],
+                        deseq_sig_idps[["Wildtype_37_10"]])
+exp_heatshock <- setdiff(deseq_sig_idps[["Double.KDKO_42_10"]],
+                         deseq_sig_idps[["Double.KDKO_37_10"]])
 diff <- base::setdiff(wt_heatshock, exp_heatshock)
 
 diff %>%
@@ -150,7 +215,9 @@ diff %>%
        organism = "scerevisiae",
        correction_method = "bonferroni") %>%
   `$`(result) %>%
-  arrange(p_value) %>%
+  arrange(desc(intersection_size), p_value) %>%
   dplyr::slice(1:10) %>%
-  publish_gosttable(show_columns = c("term_name"))
+  publish_gosttable(show_columns = c("term_name",
+                                     "term_size",
+                                     "intersection_size"))
 
