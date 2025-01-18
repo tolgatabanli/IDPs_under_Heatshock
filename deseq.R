@@ -99,4 +99,4 @@ for (ind in seq_along(deseq_results)) {
 }
 
 ggarrange(plotlist = plots, ncol = 2, nrow = 8, common.legend = T)
-ggsave("significant plots/volcanoes.png", device = "png", height = 25, width = 10)
+ggsave("significant plots/volcanoes 18-01.png", device = "png", height = 25, width = 10)
