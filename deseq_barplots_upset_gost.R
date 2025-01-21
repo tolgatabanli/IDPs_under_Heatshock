@@ -89,7 +89,7 @@ dev.off()
 
 
 
-set_base_url("https://biit.cs.ut.ee/gprofiler_beta") # for when the server's down
+# set_base_url("https://biit.cs.ut.ee/gprofiler_beta") # for when the server's down
 
 # Against whole genome
 gost_res <- deseq_sig_idps %>%
@@ -99,6 +99,7 @@ gost_res <- deseq_sig_idps %>%
              correction_method = "fdr"))
 
 # GostTable
+library(kableExtra)
 generate_collapsible_panels <- function(conditions, query_sizes) {
   html_panels <- lapply(seq_along(conditions), function(i) {
     condition_name <- names(conditions)[i]
