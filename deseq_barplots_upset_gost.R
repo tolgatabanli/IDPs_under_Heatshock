@@ -199,10 +199,9 @@ terms <- gost_res %>%
 
 gost_res %>%
   compact() %>%
-  map(~ gostplot(.x, interactive = F)) %>%
-  iwalk(~ publish_gostplot(p = .x,
+  iwalk(~ publish_gosttable(gostres = .x,
                            filename = paste0("gostplots_idp_bg/", .y, ".png"),
-                           highlight_terms = terms))
+                           show_columns = c("term_name", "term_size", "interaction_size")))
 
 # Wildtype 42_30 minus Double_42_30
 wt_heatshock <- setdiff(deseq_sig_idps[["Wildtype_42_10"]],
