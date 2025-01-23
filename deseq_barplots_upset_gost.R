@@ -98,6 +98,16 @@ gost_res <- deseq_sig_idps %>%
              organism = "scerevisiae",
              correction_method = "fdr"))
 
+# With all common significants
+deseq_sig_idps %>%
+  purrr::reduce(intersect) %>%
+  gost(query = .,
+       organism = "scerevisiae",
+       correction_method = "fdr") %>%
+  `$`(result) %>% as.data.frame() %>%
+  arrange(desc(intersection_size), term_size) %>%
+  publish_gosttable(show_columns = c("term_name", "term_size", "intersection_size"))
+
 # GostTable
 library(kableExtra)
 generate_collapsible_panels <- function(conditions, query_sizes) {
