@@ -13,6 +13,7 @@ disprot <- read_tsv("DisProt/DisProt release_2024_12.tsv") %>%
 heat_matrix_control <- data.frame(rowname = disprot)
 
 heat_matrix <- data.frame(rowname = commons)
+deseq <- readRDS("deseq_results.Rds")
 
 # Make heatmap matrix for analyticals
 df_names <- names(deseq)
