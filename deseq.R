@@ -1,7 +1,6 @@
 library(DESeq2)
 library(tidyverse)
 library(ggpubr)
-library(plotly)
 library(grid)
 
 colData <- read_tsv("sample_mapping.tsv", col_names = T) %>%
