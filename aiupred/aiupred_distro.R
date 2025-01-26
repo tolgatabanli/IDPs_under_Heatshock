@@ -1,3 +1,5 @@
+# failed trial to recreate matplotlib style AIUPred plots.
+
 library(reticulate)
 library(tidyverse)
 
@@ -8,9 +10,9 @@ all_disorder_scores <- pickle_data %>%
   reduce(c)
 
 all_disorder_scores %>%
-  as.tibble() %>%
+  as_tibble() %>%
   ggplot(aes(x = value)) +
-  geom_histogram(bins = 101, fill = "#1f77b4") +
+  geom_histogram(bins = 100, fill = "#1f77b4") +
   xlab("Local Disorder Score") +
   ylab("") +
   labs(title = "Distribution of local disorder scores") +
