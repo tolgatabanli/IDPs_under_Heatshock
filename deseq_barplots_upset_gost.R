@@ -36,12 +36,13 @@ expr_direction <- deseq_results %>%
   map(~ mutate(.x, idp = case_when(
     rowname %in% idps ~ TRUE,
     !(rowname %in% idps) ~ FALSE
-  ))) %>%
+  )))
+
+expr_direction %>%
   map_dfr(convert_to_counts, .id = "dataset") %>%
   mutate(group = factor(group, levels = c("Total Up", "Total Down",
-                                          "IDP Up", "IDP Down")))
-
-ggplot(expr_direction, aes(x = group, y = count, fill = group)) +
+                                          "IDP Up", "IDP Down"))) %>%
+ggplot(aes(x = group, y = count, fill = group)) +
   geom_bar(stat = "identity") +
   facet_wrap(~dataset, scales = "free") +
   labs(
@@ -213,7 +214,7 @@ gost_res %>%
                            filename = paste0("gostplots_idp_bg/", .y, ".png"),
                            show_columns = c("term_name", "term_size", "interaction_size")))
 
-# Wildtype 42_30 minus Double_42_30
+# Gosts of Upregulated
 wt_heatshock <- setdiff(deseq_sig_idps[["Wildtype_42_10"]],
                         deseq_sig_idps[["Wildtype_37_10"]])
 exp_heatshock <- setdiff(deseq_sig_idps[["Double.KDKO_42_10"]],
