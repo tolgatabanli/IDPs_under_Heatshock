@@ -214,21 +214,48 @@ gost_res %>%
                            filename = paste0("gostplots_idp_bg/", .y, ".png"),
                            show_columns = c("term_name", "term_size", "interaction_size")))
 
-# Gosts of Upregulated
-wt_heatshock <- setdiff(deseq_sig_idps[["Wildtype_42_10"]],
-                        deseq_sig_idps[["Wildtype_37_10"]])
-exp_heatshock <- setdiff(deseq_sig_idps[["Double.KDKO_42_10"]],
-                         deseq_sig_idps[["Double.KDKO_37_10"]])
-diff <- base::setdiff(wt_heatshock, exp_heatshock)
+# Gosts of Upregulated and Downregulated !!! CHANGE: Up / Down
+xregulated_idps <- expr_direction %>%
+  map(filter, direction == "Down" & idp)
 
-diff %>%
-  gost(query = .,
-       organism = "scerevisiae",
-       correction_method = "bonferroni") %>%
-  `$`(result) %>%
-  arrange(desc(intersection_size), p_value) %>%
-  dplyr::slice(1:10) %>%
-  publish_gosttable(show_columns = c("term_name",
-                                     "term_size",
-                                     "intersection_size"))
+gost_res <- xregulated_idps %>%
+  janitor::clean_names() %>%
+  map(pull, rowname) %>%
+  map(~ gost(query = .x,
+             organism = "scerevisiae",
+             correction_method = "fdr"))
+
+conditions <- gost_res %>%
+  map(~ `$`(.x, "result") %>%
+        as.data.frame() %>%
+        arrange(p_value) %>%
+        select(term_id, term_name, term_size, intersection_size, p_value) %>%
+        filter(term_size < 50) %>%
+        arrange(desc(intersection_size), term_size, p_value) %>%
+        dplyr::slice(1:10)
+  )
+
+query_sizes <- upregulated_idps %>%
+  map(nrow) %>% unlist() %>% unname()
+
+html_content <- paste0(
+  "<!DOCTYPE html>
+  <html lang='en'>
+  <head>
+    <meta charset='UTF-8'>
+    <title>Condition Comparison</title>
+    <link rel='stylesheet' href='https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css'>
+    <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js'></script>
+    <script src='https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js'></script>
+  </head>
+  <body>
+  <div class='container'>
+  <h1>Comparison of Conditions</h1>",
+  generate_collapsible_panels(conditions, query_sizes),
+  "</div>
+  </body>
+  </html>"
+)
+
+write(html_content, file = "gosttables/downregulated_idps_combined_kable_comparison.html")
 
