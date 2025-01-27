@@ -99,3 +99,48 @@ for (ind in seq_along(deseq_results)) {
 
 ggarrange(plotlist = plots, ncol = 2, nrow = 8, common.legend = T)
 ggsave("significant plots/volcanoes.png", device = "png", height = 25, width = 10)
+
+
+# For Heat shock DESeq with reference to wildtype (37) using only wildtypes
+multiple_deseq_wt <- function(countData, colData, knock, temp, t) {
+  subColData <- colData %>%
+    filter(knockout == knock & time == t) %>%
+    filter(temperature == 37 | temperature == temp) # REFERENCE AS 37
+  
+  subcounts <- heatshock_counts %>% select(rownames(subColData))
+  
+  dds <- DESeqDataSetFromMatrix(countData = subcounts,
+                                colData = subsample,
+                                design = ~ temperature)
+  deseq <- DESeq(dds, quiet = TRUE)
+  res <- results(deseq)
+  
+  deseq_results[[paste0(knock,"_",temp,"_",t)]] <<- res
+  
+  return(plot_res(res, knock, temp, t))
+}
+
+times <- c(10, 30)
+temps <- 42
+knockouts <- "Wildtype"
+
+combs <- expand.grid(time = times, temperature = temps, knockout = knockouts)
+plots <- list()
+
+for (row in 1:nrow(combs)) {
+  plots[[row]] <- multiple_deseq(heatshock_counts,
+                                 colData,
+                                 as.character(combs[row,"knockout"]),
+                                 combs[row,"temperature"],
+                                 combs[row, "time"])
+}
+
+for (ind in seq_along(deseq_results)) {
+  plots[[ind]] <- plot_res(deseq_results[[ind]],
+                           combs[ind, "knockout"],
+                           combs[ind, "temperature"],
+                           combs[ind, "time"])
+}
+
+ggarrange(plotlist = plots, ncol = 2, nrow = 1, common.legend = T)
+ggsave("significant plots/volcanoes_wildtype_heatshock.png", device = "png", height = 5, width = 10)
