@@ -101,8 +101,12 @@ ggarrange(plotlist = plots, ncol = 2, nrow = 8, common.legend = T)
 ggsave("significant plots/volcanoes.png", device = "png", height = 25, width = 10)
 
 
-# For Heat shock DESeq with reference to wildtype (37) using only wildtypes
-multiple_deseq_wt <- function(countData, colData, knock, temp, t) {
+
+
+
+
+# For Heat shock DESeq with reference to 37
+multiple_deseq_37 <- function(countData, colData, knock, temp, t) {
   subColData <- colData %>%
     filter(knockout == knock & time == t) %>%
     filter(temperature == 37 | temperature == temp) # REFERENCE AS 37
@@ -110,7 +114,7 @@ multiple_deseq_wt <- function(countData, colData, knock, temp, t) {
   subcounts <- heatshock_counts %>% select(rownames(subColData))
   
   dds <- DESeqDataSetFromMatrix(countData = subcounts,
-                                colData = subsample,
+                                colData = subColData,
                                 design = ~ temperature)
   deseq <- DESeq(dds, quiet = TRUE)
   res <- results(deseq)
@@ -122,13 +126,16 @@ multiple_deseq_wt <- function(countData, colData, knock, temp, t) {
 
 times <- c(10, 30)
 temps <- 42
-knockouts <- "Wildtype"
+knockouts <- colData %>%
+  dplyr::select(knockout) %>%
+  unique() %>%
+  pull()
 
 combs <- expand.grid(time = times, temperature = temps, knockout = knockouts)
 plots <- list()
 
 for (row in 1:nrow(combs)) {
-  plots[[row]] <- multiple_deseq(heatshock_counts,
+  plots[[row]] <- multiple_deseq_37(heatshock_counts,
                                  colData,
                                  as.character(combs[row,"knockout"]),
                                  combs[row,"temperature"],
@@ -142,5 +149,6 @@ for (ind in seq_along(deseq_results)) {
                            combs[ind, "time"])
 }
 
-ggarrange(plotlist = plots, ncol = 2, nrow = 1, common.legend = T)
-ggsave("significant plots/volcanoes_wildtype_heatshock.png", device = "png", height = 5, width = 10)
+ggarrange(plotlist = plots, ncol = 2, nrow = 4, common.legend = T)
+ggsave("significant plots/volcanoes_reference37.png", device = "png", height =15, width = 10)
+saveRDS(deseq_results, "deseq_reference37.Rds")
