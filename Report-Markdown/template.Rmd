@@ -1,0 +1,16 @@
+---
+title: "XXX"
+author: "Tolga Tabanli"
+date: "2025-01-25"
+output: pdf_document
+knit: (function(input, encoding) {
+  rmarkdown::render(input,
+                    encoding = "UTF-8",
+                    output_dir = "/home/tolga/Desktop/IDPs_under_Heatshock/Knittings")})
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+

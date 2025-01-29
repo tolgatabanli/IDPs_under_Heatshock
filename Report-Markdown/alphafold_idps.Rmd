@@ -1,0 +1,191 @@
+---
+title: "AlphaFold IDPs"
+author: "Tolga Tabanli"
+date: "2025-01-25"
+output: pdf_document
+knit: (function(input, encoding) {
+  rmarkdown::render(input,
+                    encoding = "UTF-8",
+                    output_dir = "/home/tolga/Desktop/IDPs_under_Heatshock/Knittings")})
+---
+
+```{r setup.alphafold, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/home/tolga/Desktop/IDPs_under_Heatshock/')
+library(tidyverse)
+```
+
+## AlphaFold
+
+In AlphaFold's .cif files, the local pLDDTs are given for each residue.
+These were extracted using R's extensive regex capabilities.
+To optimize the process, certain flags/patterns were used to exactly
+locate the required segment.
+
+```{r prep-alphafold, eval=F}
+dir <- here::here("alphafold cifs")
+files <- list.files(dir)
+
+local_plddts <- tibble(uniprot = character(), scores = list())
+start <- "_ma_qa_metric_local.ordinal_id"
+end <- "#"
+score_pattern <- "\\b\\d+\\.\\d+\\b"  # regex for floating point numbers
+```
+
+The file is first scanned until a start flag is encountered (found_start)
+and then the pattern is searched until an end flag (end).
+
+```{r, eval=F}
+i <- 1
+for (file in files) {
+  print(i) # for progress
+
+  accession <- str_split_1(file, "-")[2] # get accession from the file name
+  file_connection <- file(paste0(dir, "/", file), open = "r")
+  found_start <- FALSE
+  scores <- c()
+  while(TRUE) {
+    line <- readLines(file_connection, n = 1)
+    if(!found_start) {
+      if (line == start) found_start <- TRUE
+    } else {
+      if (line == end) {
+        break
+      }
+      # extract the decimal number and concatenate to the scores
+      scores <- c(scores, as.numeric(regmatches(line, regexpr(score_pattern, line))))
+    }
+  }
+  local_plddts <- local_plddts %>% add_row(uniprot = accession, scores = list(scores))
+  i = i + 1
+}
+```
+
+
+Next, the object was stored in an Rds for later access.
+
+```{r, eval=F}
+saveRDS(local_plddts, "IDP decisions/local_plddts.Rds") # Store
+
+local_plddts <- readRDS("IDP decisions/local_plddts.Rds") # Load
+```
+
+```{r hidden-plddt-load, include=F}
+local_plddts <- readRDS("IDP decisions/local_plddts.Rds")
+```
+
+### Accession ID Conversion
+
+Next, the accessions of the proteins are converted to
+Ensembl Gene IDs for compatibility with count data by using
+a mapping that has been created by "biomaRt".
+
+```{r, eval=F}
+ensembl_up_mapping <- readRDS("IDP decisions/ensembl_up_mapping.Rds") # through biomaRt
+
+local_plddts %>%
+  group_by(uniprot) %>%
+  mutate(mean_plddt = mean(unlist(scores))) %>%
+  ungroup() %>%
+  inner_join(ensembl_up_mapping, join_by(uniprot == uniprotswissprot)) %>%
+  dplyr::select(ensembl_gene_id, mean_plddt) %>%
+  write_tsv("IDP decisions/all_proteins_from_alphafold_with_mean.tsv")
+```
+
+### Distributions
+
+For distribution of all local pLDDTs, the following code was used.
+The data frame of proteins residue scores are first reduced to a
+"pool" of all scores, which is then stored in csv file.
+By reading this csv file, the data is also automatically enframed, which
+can be given to ggplot as data. Saving steps are commented out
+to avoid side effects.
+The extensive design parameters had to be used for obtaining similarity to
+Python's Matplotlib design.
+
+```{r all-plddts-distro, fig.width=5, fig.align='center', eval=F}
+all_scores <- local_plddts %>% select(scores) %>% pull() %>% reduce(c)
+# write.csv(all_scores, "alphafold/local_plddts.csv")
+all_scores <- read.csv("alphafold/local_plddts.csv") %>%
+  `colnames<-`(c("row_names", "locals"))
+# saveRDS(all_scores, "IDP decisions/all_local_plddt_scores.Rds")
+
+# Hist of all local plddt scores
+ggplot(all_scores, aes(locals)) +
+  geom_histogram(bins = 100, fill = "#1f77b4") +
+  xlab("Local pLDDT") +
+  ylab("") +
+  labs(title = "Distribution of all local pLDDTs from AlphaFold") +
+  theme(axis.line = element_line(colour = "black"),
+        axis.text = element_text(size=14),
+        axis.title = element_text(size=14),
+        title = element_text(size=12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+        plot.margin = margin(t = 20),
+        aspect.ratio = 0.75) +
+  scale_x_continuous(breaks = c(0,20,40,60,80,100)) +
+  scale_y_continuous(expand = c(0,0,0.1,0)) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+It was a harder challenge to find the modes of the proteins.
+I first needed to define a function to create "intrinsic histograms" for each
+protein. I had used a similar method in python with scipy's stats. (Hence the name)
+
+```{r find-mode-plddt, eval=F}
+find_mode_python <- function(scores, bins) {
+  bin_edges <- seq(min(scores), max(scores), length.out = bins + 1)
+  bin_counts <- hist(scores, breaks = bin_edges, plot = FALSE)$counts
+  bin_centers <- (bin_edges[-1] + bin_edges[-length(bin_edges)]) / 2
+  mode_value <- bin_centers[which.max(bin_counts)]
+  return(mode_value)
+}
+
+# Calculate and save the modes
+with_modes <- local_plddts %>% mutate(mode_plddt =
+                          sapply(scores, find_mode_python, bins = 20)) %>%
+  dplyr::select(uniprot, mode_plddt)
+```
+
+And the plot was created using the same design idea:
+
+```{r plddt-mode-distro, fig.width=5, fig.align='center', eval=F}
+ggplot(with_modes, aes(x = mode_plddt)) +
+  geom_histogram(bins = 50, fill = "#1f77b4") +
+  xlab("Modes of proteins (pLDDT)") +
+  ylab("") +
+  labs(title = "Distribution of mode pLDDTs") +
+  theme(axis.line = element_line(colour = "black"),
+        axis.text = element_text(size=14),
+        axis.title = element_text(size=14),
+        title = element_text(size=12),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+        plot.margin = margin(t = 30),
+        aspect.ratio = 0.75) +
+  scale_x_continuous(breaks = c(0,20,40,60,80,100), limits = c(0,100)) +
+  scale_y_continuous(expand = c(0,0,0.1,0)) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Finally, the IDPs are decided based on a cut-off of 60.
+
+```{r, eval=F}
+# first convert accessions:
+ensembl_up_mapping %>%
+  inner_join(with_modes, join_by(uniprotswissprot == uniprot)) %>%
+  dplyr::select(ensembl_gene_id, mode_plddt) %>%
+  write_tsv("IDP decisions/all_proteins_from_alphafold_with_mode.tsv")
+
+
+# Filter by threshold 60
+read_tsv("IDP decisions/all_proteins_from_alphafold_with_mode.tsv") %>%
+  filter(mode_plddt < 60) %>%
+  write_tsv("IDP decisions/idps_from_alphafold_mode.tsv")
+```
+

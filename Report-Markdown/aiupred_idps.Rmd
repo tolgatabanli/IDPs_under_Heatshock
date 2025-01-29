@@ -1,0 +1,57 @@
+---
+title: "AlphaFold IDPs"
+author: "Tolga Tabanli"
+date: "2025-01-25"
+output: pdf_document
+knit: (function(input, encoding) {
+  rmarkdown::render(input,
+                    encoding = "UTF-8",
+                    output_dir = "/home/tolga/Desktop/IDPs_under_Heatshock/Knittings")})
+---
+
+```{r setup-aiupred, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/home/tolga/Desktop/IDPs_under_Heatshock/')
+library(tidyverse)
+```
+
+## AIUPred
+
+The disorder scores were calculated using the AIUPred's Python package.
+Basic plots to explore the score distributions were hence also done
+by matplotlib's pyplot. So instead, I will continue with decision/filtering.
+
+### Accession ID Conversion
+
+The database used for input to AIUPred was UniProt. However, the counts
+data for the DESeq analysis uses proteins with Ensembl IDs.
+This is why I used biomaRt library to do this conversion.
+
+```{r prep-aiupred, eval=F, message=F}
+library(tidyverse)
+library(biomaRt)
+
+# for recreating biomart
+ensembl_up_mapping <- useEnsembl(biomart = "genes",
+                                 dataset = "scerevisiae_gene_ensembl") %>%
+  getBM(attributes = c("ensembl_gene_id", "uniprotswissprot"),
+        mart = .)
+
+# use prepared mapping from biomart
+ensembl_up_mapping <- readRDS("IDP decisions/ensembl_up_mapping.Rds")
+```
+
+Finally, the disorder modes of the proteins were read from the TSV file
+that was generated through python.
+Proteins were then filtered around the cut-off of 0.6.
+
+```{r, eval=F}
+aiupred_all_proteins_mode <- read_tsv(here::here("aiupred/aiupred_modes_of_proteins.tsv"))
+
+aiupred_all_proteins_mean %>%
+  inner_join(ensembl_up_mapping, join_by(uniprot == uniprotswissprot)) %>%
+  dplyr::select(ensembl_gene_id, mean) %>%
+  dplyr::rename("mean_disorder" = "mean") %>%
+  write_tsv("IDP decisions/all_proteins_from_aiupred_with_mean.tsv")
+```
+

@@ -1,0 +1,46 @@
+---
+title: "parent"
+author: "Tolga Tabanli"
+date: "2025-01-25"
+knit: (function(input, encoding) {
+  rmarkdown::render(input,
+                    encoding = "UTF-8",
+                    output_dir = "/home/tolga/Desktop/IDPs_under_Heatshock/Knittings")})
+output:
+  pdf_document:
+    toc: yes
+---
+
+```{r big-setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/home/tolga/Desktop/IDPs_under_Heatshock/Report-Markdown')
+```
+
+# IDP Decision
+
+```{r child="aiupred_idps.Rmd"}
+```
+
+
+```{r child="alphafold_idps.Rmd"}
+```
+
+# DESeq
+
+```{r child="deseq.Rmd"}
+```
+
+# Comparison of Differential Expressions
+
+```{r child="comparison.Rmd}
+```
+
+
+# Gene Enrichment
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+

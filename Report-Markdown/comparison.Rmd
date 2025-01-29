@@ -1,0 +1,31 @@
+---
+title: "Comparison of Differential Expression"
+author: "Tolga Tabanli"
+date: "2025-01-25"
+output: pdf_document
+knit: (function(input, encoding) {
+  rmarkdown::render(input,
+                    encoding = "UTF-8",
+                    output_dir = "/home/tolga/Desktop/IDPs_under_Heatshock/Knittings")})
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/home/tolga/Desktop/IDPs_under_Heatshock/Report-Markdown')
+```
+
+This chapter deals with how the results of DESeq analysis was visualized
+and used to graphically compare the differences between IDP expression
+and the overall expression patterns. I have used bar plots to distinguish
+the number of up and down-regulated genes, heatmaps for comparison of
+expression patterns and clusters in different genotypes and lastly
+gene enrichment analysis to find out the functions of the IDPs
+implicated in heat shock and possible broken down in knock-down and
+knock-out.
+
+## Up or Down?
+
+## Heatmaps
+
+## Gene Enrichment Analysis
+
