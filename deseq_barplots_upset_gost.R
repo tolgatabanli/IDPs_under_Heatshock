@@ -215,8 +215,25 @@ gost_res %>%
                            show_columns = c("term_name", "term_size", "interaction_size")))
 
 # Gosts of Upregulated and Downregulated !!! CHANGE: Up / Down
+deseq_results <- readRDS("deseq_wildtype_results.Rds") %>%
+  map(as.data.frame)
+expr_direction <- deseq_results %>%
+  map(drop_na) %>%
+  map(arrange, padj) %>%
+  map(~ dplyr::select(.x, log2FoldChange, padj)) %>%
+  map(~ filter(.x, padj < 0.05)) %>%
+  map(~ mutate(.x, direction = case_when(
+    log2FoldChange < 0 ~ "Down",
+    log2FoldChange > 0 ~ "Up"
+  ))) %>%
+  map(rownames_to_column) %>%
+  map(~ mutate(.x, idp = case_when(
+    rowname %in% idps ~ TRUE,
+    !(rowname %in% idps) ~ FALSE
+  )))
+
 xregulated_idps <- expr_direction %>%
-  map(filter, direction == "Down" & idp)
+  map(filter, direction == "Up" & idp)
 
 gost_res <- xregulated_idps %>%
   janitor::clean_names() %>%
@@ -235,7 +252,7 @@ conditions <- gost_res %>%
         dplyr::slice(1:10)
   )
 
-query_sizes <- upregulated_idps %>%
+query_sizes <- xregulated_idps %>%
   map(nrow) %>% unlist() %>% unname()
 
 html_content <- paste0(
@@ -257,5 +274,5 @@ html_content <- paste0(
   </html>"
 )
 
-write(html_content, file = "gosttables/downregulated_idps_combined_kable_comparison.html")
+write(html_content, file = "gosttables/upregulated_idps_in_wildtype_heatshock.html")
 
