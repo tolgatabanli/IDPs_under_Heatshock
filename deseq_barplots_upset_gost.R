@@ -237,7 +237,7 @@ expr_direction %>%
   labs(
     title = "Comparison of Total and IDP Regulation",
     x = "Direction of Regulation of Total vs IDP under heat shock",
-    caption = "Reference is Wildtype 37 °C of corresponding time",
+    caption = "Reference is 37 °C of corresponding time and genotype.",
     y = "Count",
     fill = "Category"
   ) +
@@ -249,6 +249,8 @@ expr_direction %>%
     "IDP Down" = "red",
     "Total Down" = "pink"
   ))
+ggsave("significant plots/expr_reference37.png", device = "png", height = 12, width = 7)
+
 
 
 xregulated_idps <- expr_direction %>%
