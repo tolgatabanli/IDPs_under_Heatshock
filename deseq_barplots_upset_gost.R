@@ -73,9 +73,6 @@ deseq_sig_idps <- deseq_results %>%
   map(~ rownames(.x[.x$padj < 0.05 & rownames(.x) %in% idps, ]))
 
 
-
-  
-
 dev.off()
 png("significant plots/upset(ordered_degree)_from_deseq_on_commons_modes.png", width = 1920, height = 1080, res = 150)
 upset(fromList(deseq_sig_idps), sets = names(deseq_sig_idps),
@@ -98,16 +95,6 @@ gost_res <- deseq_sig_idps %>%
   map(~ gost(query = .x,
              organism = "scerevisiae",
              correction_method = "fdr"))
-
-# With all common significants
-deseq_sig_idps %>%
-  purrr::reduce(intersect) %>%
-  gost(query = .,
-       organism = "scerevisiae",
-       correction_method = "fdr") %>%
-  `$`(result) %>% as.data.frame() %>%
-  arrange(desc(intersection_size), term_size) %>%
-  publish_gosttable(show_columns = c("term_name", "term_size", "intersection_size"))
 
 # GostTable
 library(kableExtra)
@@ -154,7 +141,6 @@ conditions <- gost_res %>%
 query_sizes <- deseq_sig_idps %>%
   map(length) %>% unlist() %>% unname()
 
-# Generate collapsible HTML for all conditions
 html_content <- paste0(
   "<!DOCTYPE html>
   <html lang='en'>
@@ -214,8 +200,14 @@ gost_res %>%
                            filename = paste0("gostplots_idp_bg/", .y, ".png"),
                            show_columns = c("term_name", "term_size", "interaction_size")))
 
+
+
+
+
+
+# Reference 37
 # Gosts of Upregulated and Downregulated !!! CHANGE: Up / Down
-deseq_results <- readRDS("deseq_wildtype_results.Rds") %>%
+deseq_results <- readRDS("deseq_reference37.Rds") %>%
   map(as.data.frame)
 expr_direction <- deseq_results %>%
   map(drop_na) %>%
@@ -232,8 +224,35 @@ expr_direction <- deseq_results %>%
     !(rowname %in% idps) ~ FALSE
   )))
 
+expr_direction %>%
+  map_dfr(convert_to_counts, .id = "dataset") %>%
+  mutate(group = factor(group, levels = c("Total Up", "Total Down",
+                                          "IDP Up", "IDP Down"))) %>%
+  ggplot(aes(x = group, y = count, fill = group)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ dataset, ncol = 2, scales = "free",
+             labeller = labeller(dataset = function(x) {
+               gsub("(\\w+?)_(\\d+?)_(\\d+?)", "\\1 \\2 °C, t = \\3", x)
+             })) +
+  labs(
+    title = "Comparison of Total and IDP Regulation",
+    x = "Direction of Regulation of Total vs IDP under heat shock",
+    caption = "Reference is Wildtype 37 °C of corresponding time",
+    y = "Count",
+    fill = "Category"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank()) +
+  scale_fill_manual(values = c(
+    "IDP Up" = "blue",
+    "Total Up" = "lightblue",
+    "IDP Down" = "red",
+    "Total Down" = "pink"
+  ))
+
+
 xregulated_idps <- expr_direction %>%
-  map(filter, direction == "Up" & idp)
+  map(filter, direction == "Down" & idp)
 
 gost_res <- xregulated_idps %>%
   janitor::clean_names() %>%
@@ -274,5 +293,5 @@ html_content <- paste0(
   </html>"
 )
 
-write(html_content, file = "gosttables/upregulated_idps_in_wildtype_heatshock.html")
+write(html_content, file = "gosttables/downregulated_idps_reference37.html")
 
