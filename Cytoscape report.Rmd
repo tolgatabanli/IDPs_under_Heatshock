@@ -1,0 +1,230 @@
+---
+title: "Yeast PPI Network Social"
+author: "Tolga Tabanlı"
+date: "2024-11-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(igraph)
+library(DirectedClustering)
+library(RCy3)
+library(plyr)
+library(knitr)
+library(kableExtra)
+```
+
+# Yeast PPI Network
+
+## The source
+
+The source for the interactions is Biogrid.
+Explanations on format tab3 and headers:
+https://wiki.thebiogrid.org/doku.php/biogrid_tab_version_3.0
+
+Read data that have genetic and physical interactions inclusive with few other organisms.
+
+```{r, include=FALSE}
+# 2. LOAD ALREADY SAVED RDS raw_data:
+raw_data <- read_rds("biogrid_yeast.rds")
+```
+
+The data contain both genetic and protein interactions.
+```{r}
+raw_data <- raw_data %>% select(starts_with("Systematic"), `Experimental System Type`, starts_with("Organism"), Modification, Score)
+
+# Filter only yeast-yeast interactions
+yeast_interactions <- raw_data %>%
+  filter(`Organism Name Interactor A` == "Saccharomyces cerevisiae (S288c)" &
+           `Organism Name Interactor B` == "Saccharomyces cerevisiae (S288c)") %>%
+  select(-starts_with("Organism"))
+
+nrow(yeast_interactions) / nrow(raw_data)
+
+```
+
+```{r, include=FALSE}
+rm(raw_data)
+```
+
+```{r}
+# The two types of interactions are phsyical (proteins) and genetic:
+yeast_interactions %>% select(`Experimental System Type`) %>% distinct()
+```
+
+# PPI Network
+
+We are continuing with PPI. And eliminate duplicates in the dataset. (There
+may still be duplicates as combinations where order matters.)
+
+```{r}
+prot_int <- yeast_interactions %>%
+  filter(`Experimental System Type` == "physical") %>% select(-`Experimental System Type`)
+# Filter out duplicate entries
+uni_prot_int <- prot_int %>%
+  distinct(`Systematic Name Interactor A`, `Systematic Name Interactor B`, .keep_all = T)
+```
+
+## igraph
+
+Create an igraph object from PPI data frame. Simplifying removes loops
+and multiple edges. Explore change in the number of edges:
+
+```{r}
+prot_graph <- graph_from_data_frame(uni_prot_int, directed = FALSE)
+E(prot_graph) %>% length()
+prot_graph <- prot_graph %>% simplify()
+E(prot_graph) %>% length()
+```
+
+We can also cut out unconnected components from our graph.
+These are most probably isolated nodes that were
+due to insufficient coverage of the data set.
+
+```{r}
+comps <- components(prot_graph) # has vectors named $membership, $csize and $no
+membership <- comps$membership
+unc <- membership[membership == 2]
+
+# Cut out the unconnected single protein(s)
+prot_graph <- delete_vertices(prot_graph, names(unc))
+```
+
+### Some analyticals
+
+Finding average shortest (or characteristic) path length is
+important in graph analysis.
+
+```{r}
+mean_path_prot <- mean_distance(prot_graph)
+mean_path_prot
+```
+
+The clustering coefficient:
+
+```{r, eval=FALSE}
+clust_coef_prot <- ClustF(as_adjacency_matrix(prot_graph) %>% as.matrix(), type = "undirected", isolates = "NaN")
+```
+
+Now, let's compare these with those of a random graph.
+
+```{r,echo=FALSE}
+load("clustering_coeffs.RData")
+```
+
+
+```{r, eval=FALSE}
+random_graph <- sample_gnm(gorder(prot_graph), ecount(prot_graph))
+mean_path_random <- mean_distance(random_graph)
+clust_coef_random <- ClustF(as_adjacency_matrix(random_graph) %>% as.matrix(), type = "undirected", isolates = "NaN")
+```
+
+```{r, echo=FALSE}
+data.frame('Characteristic Path' = c(mean_path_prot,
+                                     mean_path_random),
+           'Coefficient of Clustering' = c(clust_coef_prot$GlobalCC,
+                                           clust_coef_random$GlobalCC),
+           row.names = c("PPI Graph", "Random graph")) %>%
+  kable() %>%
+  kable_styling()
+```
+
+## Cytoscape
+
+Because it is practically impossible to visualize the whole network
+due to HUGE computationally intensive waiting PERIOD,
+let's take a subgraph induced by the protein RAD53, or YPL153C.
+
+```{r cy, eval=FALSE}
+cytoscapePing()
+neighbors <- neighbors(prot_graph, "YPL153C")
+ind_subgraph <- induced_subgraph(prot_graph, c("YPL153C", neighbors$name))
+createNetworkFromIgraph(ind_subgraph, title = "Yeast PPI")
+setVisualStyle('Marquee')
+exportImage("tmp1", 'PNG', zoom=200)
+```
+
+```{r, echo=FALSE, fig.cap="Network of yeast PPI extracted from Biogrid, on Cytoscape", out.width = '100%'}
+knitr::include_graphics("tmp1.png")
+```
+
+Now let's focus on all interactions that have modification data.
+
+```{r}
+mod_graph <- uni_prot_int %>%
+  filter(Modification != "-") %>%
+  graph_from_data_frame()
+```
+
+Let's customize the network based on the attribute "modification".
+This way, we can visualize what kind of modifications
+our chosen nodes may undergo. First, look up which modifications are entered:
+
+```{r}
+mods <- mod_graph %>%
+  E() %>% `$`("Modification") %>%
+  unique()
+```
+
+We should also regenerate the igraph, since simplifying removes
+edge attributes, but deleting node does not.
+
+```{r, eval=FALSE}
+createNetworkFromIgraph(mod_graph)
+
+
+edge_data <- data.frame(
+  source = as_ids(head_of(mod_graph, E(mod_graph))),
+  target = as_ids(tail_of(mod_graph, E(mod_graph))),
+  Modification = E(mod_graph)$Modification
+)
+
+setVisualStyle("default")  # Start with the default style or create a new one
+
+# Load the edge attr into Cy
+loadTableData(edge_data, data.key.column = "source", table = "edge", table.key.column = "source")
+
+modification_colors <- c(
+  "No Modification"      = "#A9A9A9",  # Darker gray
+  "Phosphorylation"      = "#FF4500",  # Orange-red
+  "Dephosphorylation"    = "#FF8C00",  # Dark orange
+  "Deubiquitination"     = "#32CD32",  # Lime green
+  "Glycosylation"        = "#4682B4",  # Steel blue
+  "Methylation"          = "#8A2BE2",  # Blue violet
+  "Acetylation"          = "#DA70D6",  # Orchid
+  "Sumoylation"          = "#FFD700",  # Gold
+  "Ubiquitination"       = "#FF6347",  # Tomato
+  "Prenylation"          = "#20B2AA",  # Light sea green
+  "Deacetylation"        = "#DB7093",  # Pale violet red
+  "Nedd(Rub1)ylation"    = "#B8860B",  # Dark goldenrod
+  "Demethylation"        = "#9932CC",  # Dark orchid
+  "Proteolytic Processing" = "#C71585",  # Medium violet red
+  "Desumoylation"        = "#6495ED",  # Cornflower blue
+  "Deneddylation"        = "#008080"   # Teal
+)
+
+setEdgeColorMapping("Modification", mods, modification_colors, mapping.type = "d")
+exportImage("tmp2.png", 'PNG', zoom=200)
+```
+
+```{r, echo=FALSE, fig.cap="Network of PPI with edges colored according to modification type", out.width = '100%'}
+knitr::include_graphics("tmp2.png")
+```
+
+Let's now visualize the edge sizes based on the scores.
+
+```{r}
+mod_graph <- uni_prot_int %>%
+  filter(Score != "-") %>%
+    graph_from_data_frame()
+
+createNetworkFromIgraph(mod_graph)
+
+node_attr <- data.frame(degrees = degree(mod_graph),
+          row.names = V(mod_graph)$name)
+loadTableData(node_attr)
+setNodeSizeMapping("degrees", c(1,3,5,7), c(20,40,60,80))
+```
+
