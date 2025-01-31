@@ -20,12 +20,15 @@ knockouts <- colData %>%
 idps <- readRDS("IDP decisions/commons_modes.Rds")
 deseq_results <- list()
 deseq_results <- readRDS("deseq_results.Rds") # Read already done deseq results
+deseq_results <- readRDS("deseq_reference37.Rds")
 
 plot_res <- function(res, knock, temp, t) {
   res <- res %>%
     as.data.frame() %>%
     drop_na()
-  significant_idps <- res$padj < 0.05 & rownames(res) %in% idps
+  significant_idps <- res$padj < 0.05 &
+    abs(res$log2FoldChange) > 0.6 &
+    rownames(res) %in% idps
   
   grob <- grobTree(textGrob(
     paste("Significant IDP ratio:\n",
