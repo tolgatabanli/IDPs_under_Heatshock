@@ -1,6 +1,7 @@
 library(tidyverse)
 library(UpSetR)
 library(gprofiler2)
+library(enrichplot)
 library(ggpubr)
 library(janitor)
 
@@ -22,12 +23,21 @@ convert_to_counts <- function(df) {
 }
 
 idps <- readRDS("IDP decisions/commons_modes.Rds")
+
+# Get DESeq Results
+## Reference25
 deseq_results <- readRDS("deseq_results.Rds") %>% map(as.data.frame)
+ref <- 25
+## Reference37
+deseq_results <- readRDS("deseq_reference37.Rds") %>%
+  map(as.data.frame)
+ref <- 37
+
 expr_direction <- deseq_results %>%
   map(drop_na) %>%
   map(arrange, padj) %>%
   map(~ dplyr::select(.x, log2FoldChange, padj)) %>%
-  map(~ filter(.x, padj < 0.05)) %>%
+  map(~ filter(.x, padj < 0.05, abs(log2FoldChange) > 0.6)) %>%
   map(~ mutate(.x, direction = case_when(
     log2FoldChange < 0 ~ "Down",
     log2FoldChange > 0 ~ "Up"
@@ -38,16 +48,21 @@ expr_direction <- deseq_results %>%
     !(rowname %in% idps) ~ FALSE
   )))
 
+# Expression Barplot
 expr_direction %>%
   map_dfr(convert_to_counts, .id = "dataset") %>%
   mutate(group = factor(group, levels = c("Total Up", "Total Down",
                                           "IDP Up", "IDP Down"))) %>%
-ggplot(aes(x = group, y = count, fill = group)) +
+  ggplot(aes(x = group, y = count, fill = group)) +
   geom_bar(stat = "identity") +
-  facet_wrap(~dataset, scales = "free") +
+  facet_wrap(~ dataset, ncol = 2, scales = "free",
+             labeller = labeller(dataset = function(x) {
+               gsub("(\\w+?)_(\\d+?)_(\\d+?)", "\\1 \\2 °C, t = \\3", x)
+             })) +
   labs(
     title = "Comparison of Total and IDP Regulation",
-    x = "Direction of Regulation in Total vs IDP",
+    x = "Direction of Regulation of Total vs IDP under heat shock",
+    caption = paste("Reference is", ref, "°C of corresponding time and genotype."),
     y = "Count",
     fill = "Category"
   ) +
@@ -59,36 +74,33 @@ ggplot(aes(x = group, y = count, fill = group)) +
     "IDP Down" = "red",
     "Total Down" = "pink"
   ))
-
-
-ggsave("significant plots/expr_all_vs_idps.png", device = "png", height = 15, width = 20)
+ggsave(paste0("significant plots/expr_reference", ref, ".png"),
+       device = "png", height = 12, width = 7)
 
 deseq_sig_all <- deseq_results %>%
   map(drop_na) %>%
   map(arrange, padj) %>%
-  map(~ rownames(.x[.x$padj < 0.05, ]))
-deseq_sig_idps <- deseq_results %>%
-  map(drop_na) %>%
-  map(arrange, padj) %>%
-  map(~ rownames(.x[.x$padj < 0.05 & rownames(.x) %in% idps, ]))
+  map(~ rownames(.x[.x$padj < 0.05 & abs(.x$log2FoldChange) > 0.6, ]))
+deseq_sig_idps <- deseq_sig_all %>%
+  map(intersect, idps)
 
-
+# UPSET plot
 dev.off()
-png("significant plots/upset(ordered_degree)_from_deseq_on_commons_modes.png", width = 1920, height = 1080, res = 150)
+png(paste0("significant plots/upset(ordered_degree)_ref",ref,".png"),
+    width = 1920, height = 1080, res = 150)
 upset(fromList(deseq_sig_idps), sets = names(deseq_sig_idps),
       keep.order = T,
       nsets = length(deseq_sig_idps),
       point.size = 3, line.size = 1,
       mainbar.y.label = "Significant IDP Intersection",
       sets.x.label = "Number of IDPs ",
-      order.by = c("degree"),
+      order.by = c("freq"),
       text.scale = c(1.7,1,1.3,1,1,1.3))
 dev.off()
 
 
 
-# set_base_url("https://biit.cs.ut.ee/gprofiler_beta") # for when the server's down
-
+# Gene Enrichment
 # Against whole genome
 gost_res <- deseq_sig_idps %>%
   janitor::clean_names() %>%
@@ -98,6 +110,7 @@ gost_res <- deseq_sig_idps %>%
 
 # GostTable
 library(kableExtra)
+
 generate_collapsible_panels <- function(conditions, query_sizes) {
   html_panels <- lapply(seq_along(conditions), function(i) {
     condition_name <- names(conditions)[i]
@@ -129,18 +142,6 @@ generate_collapsible_panels <- function(conditions, query_sizes) {
   paste0(html_panels, collapse = "\n")
 }
 
-conditions <- gost_res %>%
-  map(~ `$`(.x, "result") %>%
-        as.data.frame() %>%
-        arrange(p_value) %>%
-        select(term_id, term_name, term_size, intersection_size, p_value) %>%
-        filter(term_size < 50) %>%
-        arrange(desc(intersection_size), term_size, p_value) %>%
-        dplyr::slice(1:10)
-  )
-query_sizes <- deseq_sig_idps %>%
-  map(length) %>% unlist() %>% unname()
-
 html_content <- paste0(
   "<!DOCTYPE html>
   <html lang='en'>
@@ -160,98 +161,11 @@ html_content <- paste0(
   </html>"
 )
 
-# Save the combined HTML
-write(html_content, file = "gosttables/combined_kable_comparison.html")
-
-# GostPlots
-terms <- gost_res %>%
-  map(~ `$`(.x, "result")) %>%
-  map(dplyr::pull, term_id) %>%
-  purrr::reduce(base::union)
-
-gost_res %>%
-  map(~ {
-    .x$result <- arrange(.x$result, p_value) %>%
-      dplyr::slice(1:10)
-    print(.x)
-    .x
-  }) %>%
-  map(~ gostplot(.x, interactive = F)) %>%
-  iwalk(~ publish_gostplot(p = .x,
-                           filename = paste0("gostplots/", .y, ".png"),
-                           highlight_terms = terms))
-
-# Against IDPs: no result
-gost_res <- deseq_sig_idps %>%
-  janitor::clean_names() %>%
-  map(~ gost(query = .x,
-             organism = "scerevisiae",
-             custom_bg = idps,
-             correction_method = "bonferroni"))
-terms <- gost_res %>%
-  compact() %>%
-  map(~ `$`(.x, "result")) %>%
-  map(dplyr::pull, term_id) %>%
-  purrr::reduce(base::union)
-
-gost_res %>%
-  compact() %>%
-  iwalk(~ publish_gosttable(gostres = .x,
-                           filename = paste0("gostplots_idp_bg/", .y, ".png"),
-                           show_columns = c("term_name", "term_size", "interaction_size")))
-
-
-
-
-
-
 # Reference 37
 # Gosts of Upregulated and Downregulated !!! CHANGE: Up / Down
-deseq_results <- readRDS("deseq_reference37.Rds") %>%
-  map(as.data.frame)
-expr_direction <- deseq_results %>%
-  map(drop_na) %>%
-  map(arrange, padj) %>%
-  map(~ dplyr::select(.x, log2FoldChange, padj)) %>%
-  map(~ filter(.x, padj < 0.05)) %>%
-  map(~ mutate(.x, direction = case_when(
-    log2FoldChange < 0 ~ "Down",
-    log2FoldChange > 0 ~ "Up"
-  ))) %>%
-  map(rownames_to_column) %>%
-  map(~ mutate(.x, idp = case_when(
-    rowname %in% idps ~ TRUE,
-    !(rowname %in% idps) ~ FALSE
-  )))
-
-expr_direction %>%
-  map_dfr(convert_to_counts, .id = "dataset") %>%
-  mutate(group = factor(group, levels = c("Total Up", "Total Down",
-                                          "IDP Up", "IDP Down"))) %>%
-  ggplot(aes(x = group, y = count, fill = group)) +
-  geom_bar(stat = "identity") +
-  facet_wrap(~ dataset, ncol = 2, scales = "free",
-             labeller = labeller(dataset = function(x) {
-               gsub("(\\w+?)_(\\d+?)_(\\d+?)", "\\1 \\2 °C, t = \\3", x)
-             })) +
-  labs(
-    title = "Comparison of Total and IDP Regulation",
-    x = "Direction of Regulation of Total vs IDP under heat shock",
-    caption = "Reference is 37 °C of corresponding time and genotype.",
-    y = "Count",
-    fill = "Category"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_blank()) +
-  scale_fill_manual(values = c(
-    "IDP Up" = "blue",
-    "Total Up" = "lightblue",
-    "IDP Down" = "red",
-    "Total Down" = "pink"
-  ))
-ggsave("significant plots/expr_reference37.png", device = "png", height = 12, width = 7)
-
-
+deseq_sig_idps <- expr_direction %>%
+  map(filter, rowname %in% idps) %>%
+  map(pull, rowname)
 
 xregulated_idps <- expr_direction %>%
   map(filter, direction == "Down" & idp)
@@ -275,25 +189,6 @@ conditions <- gost_res %>%
 
 query_sizes <- xregulated_idps %>%
   map(nrow) %>% unlist() %>% unname()
-
-html_content <- paste0(
-  "<!DOCTYPE html>
-  <html lang='en'>
-  <head>
-    <meta charset='UTF-8'>
-    <title>Condition Comparison</title>
-    <link rel='stylesheet' href='https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css'>
-    <script src='https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js'></script>
-    <script src='https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js'></script>
-  </head>
-  <body>
-  <div class='container'>
-  <h1>Comparison of Conditions</h1>",
-  generate_collapsible_panels(conditions, query_sizes),
-  "</div>
-  </body>
-  </html>"
-)
 
 write(html_content, file = "gosttables/downregulated_idps_reference37.html")
 
