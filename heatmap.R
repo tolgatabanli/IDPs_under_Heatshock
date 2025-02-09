@@ -4,7 +4,7 @@ library(tidyverse)
 # PREPARE
 biomart_mapping <- read_tsv("IDP decisions/biomart_mapping.tsv")
 
-commons <- readRDS("IDP decisions/commons_modes.Rds")
+idps <- readRDS("IDP decisions/commons_modes.Rds")
 disprot <- read_tsv("DisProt/DisProt release_2024_12.tsv") %>%
   select(acc) %>%
   distinct() %>%
@@ -12,58 +12,56 @@ disprot <- read_tsv("DisProt/DisProt release_2024_12.tsv") %>%
   pull(ensembl_gene_id)
 heat_matrix_control <- data.frame(rowname = disprot)
 
-heat_matrix <- data.frame(rowname = commons)
-deseq <- readRDS("deseq_results.Rds")
-
-# Make heatmap matrix for analyticals
-df_names <- names(deseq)
-deseq <- readRDS("deseq_results.Rds") %>%
+heat_matrix <- data.frame(rowname = idps)
+deseq <- readRDS("deseq_reference37.Rds") %>%
   map(data.frame) %>%
   map(rownames_to_column) %>%
-  map(select, rowname, log2FoldChange) %>%
+  map(select, rowname, log2FoldChange)
+
+# Heatmap of IDPs
+joined_matrix <- deseq %>%
   imap(~ setNames(.x, gsub("log2FoldChange", .y, names(.x)))) %>%
-  map(right_join, heat_matrix) %>%
-  purrr::reduce(function(x, y) {
-    full_join(x, y)
-  }) %>%
-  drop_na() %>% # 498 elements become 491 elements
+  map(right_join, heat_matrix) %>% # joins here with IDPs
+  purrr::reduce(full_join) %>%
+  drop_na() %>%
   column_to_rownames() %>%
   as.matrix()
 
-pheatmap(deseq, show_rownames = F,
-         main = "Heatmap from Commons")
+dev.off()
+png("significant plots/heatmap_ref37_idps.png",
+    width = 960, height = 1080, res = 150)
+pheatmap(joined_matrix, show_rownames = F,
+         main = "Heatmap from IDPs")
+dev.off()
 
 # Heatmap with DisProt as control (?)
-df_names <- names(deseq)
-deseq <- readRDS("deseq_results.Rds") %>%
-  map(data.frame) %>%
-  map(rownames_to_column) %>%
-  map(select, rowname, log2FoldChange) %>%
+joined_matrix <- deseq %>%
   imap(~ setNames(.x, gsub("log2FoldChange", .y, names(.x)))) %>%
   map(right_join, heat_matrix_control) %>%
-  purrr::reduce(function(x, y) {
-    full_join(x, y)
-  }) %>%
+  purrr::reduce(full_join) %>%
   drop_na() %>%
   column_to_rownames() %>%
   as.matrix()
 
-pheatmap(deseq, show_rownames = F,
+pheatmap(joined_matrix, show_rownames = F,
          main = "Heatmap from DisProt")
 
-# Heatmap with All Proteins
-df_names <- names(deseq)
-deseq <- readRDS("deseq_results.Rds") %>%
+# Heatmap with Non-IDPs
+joined_matrix <- readRDS("deseq_reference37.Rds") %>%
   map(data.frame) %>%
   map(rownames_to_column) %>%
+  map(filter, !(rowname %in% idps)) %>%
   map(select, rowname, log2FoldChange) %>%
   imap(~ setNames(.x, gsub("log2FoldChange", .y, names(.x)))) %>%
-  purrr::reduce(function(x, y) {
-    full_join(x, y)
-  }) %>%
+  purrr::reduce(full_join) %>%
   drop_na() %>%
   column_to_rownames() %>%
   as.matrix()
 
-pheatmap(deseq, show_rownames = F,
-         main = "Heatmap with All Genes")
+dev.off()
+png("significant plots/heatmap_ref37_non-idps.png",
+    width = 960, height = 1080, res = 150)
+pheatmap(joined_matrix, show_rownames = F,
+         main = "Heatmap of Non-IDPs")
+dev.off()
+

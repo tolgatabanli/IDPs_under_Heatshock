@@ -4,9 +4,9 @@ library(tidyverse)
 # and calculate for each disorder treshold how many
 # disordered proteins are also significant in the DEseq data
 
-prot_disorder <- read_tsv("IDP decisions/all_proteins_from_aiupred_with_mode.tsv") %>%
-  mutate(mode_disorder = mode_disorder * 100) %>%
-  arrange(desc(mode_disorder))
+prot_disorder <- read_tsv("IDP decisions/all_proteins_from_aiupred_with_mean.tsv") %>%
+  mutate(disorder = mean_disorder * 100) %>%
+  arrange(desc(disorder))
 
 prot_plddt <- read_tsv("IDP decisions/all_proteins_from_alphafold_with_mode.tsv") %>%
   # arrange(mode_plddt) %>%
@@ -14,10 +14,10 @@ prot_plddt <- read_tsv("IDP decisions/all_proteins_from_alphafold_with_mode.tsv"
 
 prots <- inner_join(prot_disorder, prot_plddt)
 
-ggplot(prot_disorder, aes(x = mode_disorder)) +
+ggplot(prot_disorder, aes(x = disorder)) +
   geom_histogram()
 
-deseq_all <- readRDS("deseq_results.Rds") %>%
+deseq_all <- readRDS("deseq_reference37.Rds") %>%
   map(data.frame) %>%
   map(rownames_to_column, var = "ensembl_gene_id") %>%
   map(select, ensembl_gene_id, padj) %>%
@@ -58,11 +58,11 @@ ratios <- data.frame(thr = numeric(),
 
 for (cond in names(deseq_all)) {
   thresholds <- deseq_all[[cond]] %>%
-    pull(mode_disorder) %>%
+    pull(disorder) %>%
     unique()
   for (thr in thresholds) {
     idps <- prot_disorder %>%
-      filter(mode_disorder > thr) %>%
+      filter(disorder > thr) %>%
       pull(ensembl_gene_id)
     
     # Find IDPs in the sub-experiment
@@ -94,7 +94,4 @@ ratios %>%
   xlab("Cut-off") +
   ylab("Ratio (Significant IDP / All IDPs in that Condition)")
 
-
-
-# OR go through significant lfc s 
 

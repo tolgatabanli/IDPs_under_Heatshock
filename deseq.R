@@ -42,6 +42,9 @@ plot_res <- function(res, knock, temp, t) {
                        breaks = c(TRUE, FALSE)) +
     geom_point(data = res %>% filter(!significant_idps), aes(colour = FALSE)) +
     geom_point(data = res %>% filter(significant_idps), aes(colour = TRUE)) +
+    geom_vline(xintercept = 0.6, linetype="dashed") +
+    geom_vline(xintercept = -0.6, linetype="dashed") +
+    geom_hline(yintercept = -log10(0.05), linetype="dashed") +
     annotation_custom(grob) +
     labs(title = paste(knock, temp, "C, t =", t),
          color = "Significance")
