@@ -46,7 +46,7 @@ plot_res <- function(res, knock, temp, t) {
     geom_vline(xintercept = -0.6, linetype="dashed") +
     geom_hline(yintercept = -log10(0.05), linetype="dashed") +
     annotation_custom(grob) +
-    labs(title = paste(knock, temp, "C, t =", t),
+    labs(title = paste(knock, temp, "C, t =", t, "min"),
          color = "Significance")
   return(p)
 }
@@ -132,29 +132,29 @@ multiple_deseq_37 <- function(countData, colData, knock, temp, t) {
 
 times <- c(10, 30)
 temps <- 42
-knockouts <- colData %>%
+genotypes <- colData %>%
   dplyr::select(knockout) %>%
   unique() %>%
   pull()
 
-combs <- expand.grid(time = times, temperature = temps, knockout = knockouts)
+combs <- expand.grid(time = times, temperature = temps, genotype = genotypes)
 plots <- list()
 
 for (row in 1:nrow(combs)) {
   plots[[row]] <- multiple_deseq_37(heatshock_counts,
                                  colData,
-                                 as.character(combs[row,"knockout"]),
+                                 as.character(combs[row,"genotype"]),
                                  combs[row,"temperature"],
                                  combs[row, "time"])
 }
 
-for (ind in seq_along(deseq_results)) {
-  plots[[ind]] <- plot_res(deseq_results[[ind]],
-                           combs[ind, "knockout"],
+for (ind in seq_along(deseq_results[c(7,8)])) {
+  plots[[ind]] <- plot_res(deseq_results[[ind+6]],
+                           combs[ind, "genotype"],
                            combs[ind, "temperature"],
                            combs[ind, "time"])
 }
 
 ggarrange(plotlist = plots, ncol = 2, nrow = 4, common.legend = T)
-ggsave("significant plots/volcanoes_reference37.png", device = "png", height =15, width = 10)
+ggsave("significant plots/volcanoes_reference37_wildtype.png", device = "png", height =4, width = 10)
 saveRDS(deseq_results, "deseq_reference37.Rds")
