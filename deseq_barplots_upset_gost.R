@@ -53,6 +53,7 @@ convert_to_counts <- function(df) {
 # Expression Barplot
 expr_direction %>%
   map_dfr(convert_to_counts, .id = "dataset") %>%
+  # filter(str_starts(dataset, "Wildtype")) %>%
   mutate(group = factor(group, levels = c("Total Up", "Total Down",
                                           "IDP Up", "IDP Down"))) %>%
   ggplot(aes(x = group, y = count, fill = group)) +
@@ -78,6 +79,8 @@ expr_direction %>%
   ))
 ggsave(paste0("significant plots/expr_reference", ref, ".png"),
        device = "png", height = 12, width = 7)
+ggsave(paste0("significant plots/expr_reference", ref, "_wildtype.png"),
+       device = "png", height = 3, width = 7)
 
 # Wildtype early vs late IDPs
 updown_wt <- expr_direction %>%
@@ -86,15 +89,21 @@ updown_wt <- expr_direction %>%
   map(~ mutate(.x, direction = factor(.x$direction, levels = c("Up", "Down")))) %>%
   map(~ split(.x$rowname, .x$direction)) %>%
   flatten() %>%
-  set_names(c("wt42_10_up", "wt42_10_down", "wt42_30_up", "wt42_30_down"))
+  set_names(c("Wildtype_42_10 Up", "Wildtype_42_10 Down",
+              "Wildtype_42_30 Up", "Wildtype_42_30 Down"))
+
+dev.off()
+png(paste0("significant plots/upset(freq)_ref",ref,"_wildtype.png"),
+    width = 1920, height = 1080, res = 200)
 upset(fromList(updown_wt), sets = names(updown_wt),
       nsets = length(updown_wt),
       keep.order = T,
       point.size = 3, line.size = 1,
-      mainbar.y.label = "",
-      sets.x.label = "",
-      order.by = c("degree"),
-      text.scale = c(1.7,1,1.3,1,1,1.3))
+      mainbar.y.label = "Significant IDP Intersection",
+      sets.x.label = "Number of IDPs",
+      order.by = c("freq"),
+      text.scale = c(1.7, 1, 1.3, 1, 1.3, 1.3))
+dev.off()
 
 deseq_sig_all <- deseq_sig %>%
   map(row.names)
@@ -103,7 +112,7 @@ deseq_sig_idps <- deseq_sig_all %>%
 
 # UPSET plot
 dev.off()
-png(paste0("significant plots/upset(ordered_degree)_ref",ref,".png"),
+png(paste0("significant plots/upset(freq)_ref",ref,".png"),
     width = 1920, height = 1080, res = 150)
 upset(fromList(deseq_sig_idps), sets = names(deseq_sig_idps),
       keep.order = T,
