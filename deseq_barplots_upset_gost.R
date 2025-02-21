@@ -72,10 +72,10 @@ expr_direction %>%
   theme_minimal() +
   theme(axis.text.x = element_blank()) +
   scale_fill_manual(values = c(
-    "IDP Up" = "blue",
-    "Total Up" = "lightblue",
-    "IDP Down" = "red",
-    "Total Down" = "pink"
+    "IDP Up" = "red",
+    "Total Up" = "pink",
+    "IDP Down" = "blue",
+    "Total Down" = "lightblue"
   ))
 ggsave(paste0("significant plots/expr_reference", ref, ".png"),
        device = "png", height = 12, width = 7)
