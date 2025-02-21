@@ -9,7 +9,7 @@ knit: (function(input, encoding) {
                     output_dir = "/home/tolga/Desktop/IDPs_under_Heatshock/Knittings")})
 ---
 
-```{r setup.alphafold, include=FALSE}
+```{r setup_alphafold, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = '/home/tolga/Desktop/IDPs_under_Heatshock/')
 library(tidyverse)

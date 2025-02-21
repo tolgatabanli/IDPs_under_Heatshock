@@ -175,8 +175,11 @@ dot_data %>%
 #ggsave("significant plots/dotplot_reference37.jpeg", height = 20, width=15)
 ggsave("significant plots/dotplot_reference37_wildtypes.jpeg", height = 12, width=12)
 
-
-
+# First down then upregulated:
+intersect(updown_wt$`Wildtype_42_10 Down`, updown_wt$`Wildtype_42_30 Up`) %>%
+  gost(query = .,
+       organism = "scerevisiae",
+       correction_method = "fdr")
 
 
 # Reference 37

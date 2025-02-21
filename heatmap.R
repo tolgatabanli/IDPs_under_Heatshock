@@ -2,15 +2,7 @@ library(pheatmap)
 library(tidyverse)
 
 # PREPARE
-biomart_mapping <- read_tsv("IDP decisions/biomart_mapping.tsv")
-
 idps <- readRDS("IDP decisions/commons_modes.Rds")
-disprot <- read_tsv("DisProt/DisProt release_2024_12.tsv") %>%
-  select(acc) %>%
-  distinct() %>%
-  inner_join(biomart_mapping, by = join_by(acc == uniprotswissprot)) %>%
-  pull(ensembl_gene_id)
-heat_matrix_control <- data.frame(rowname = disprot)
 
 heat_matrix <- data.frame(rowname = idps)
 deseq <- readRDS("deseq_reference37.Rds") %>%
@@ -35,9 +27,18 @@ pheatmap(joined_matrix, show_rownames = F,
 dev.off()
 
 # Heatmap with DisProt as control (?)
+biomart_mapping <- read_tsv("IDP decisions/biomart_mapping.tsv")
+
+disprot <- read_tsv("DisProt/DisProt release_2024_12.tsv") %>%
+  select(acc) %>%
+  distinct() %>%
+  inner_join(biomart_mapping, by = join_by(acc == uniprotswissprot)) %>%
+  pull(ensembl_gene_id)
+heat_matrix_disprot <- data.frame(rowname = disprot)
+
 joined_matrix <- deseq %>%
   imap(~ setNames(.x, gsub("log2FoldChange", .y, names(.x)))) %>%
-  map(right_join, heat_matrix_control) %>%
+  map(right_join, heat_matrix_disprot) %>%
   purrr::reduce(full_join) %>%
   drop_na() %>%
   column_to_rownames() %>%

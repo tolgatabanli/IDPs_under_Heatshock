@@ -9,10 +9,9 @@ knit: (function(input, encoding) {
                     output_dir = "/home/tolga/Desktop/IDPs_under_Heatshock/Knittings")})
 ---
 
-```{r setup, include=FALSE}
-# NOTES:
-# - significance?
-# Else DONE
+```{r setup_deseq, include=FALSE}
+# DONE
+
 knitr::opts_chunk$set(echo = TRUE, message=FALSE)
 knitr::opts_knit$set(root.dir = '/home/tolga/Desktop/IDPs_under_Heatshock/')
 
@@ -117,7 +116,7 @@ plot_res <- function(res, knock, temp, t) {
     geom_vline(xintercept = -0.6, linetype="dashed") +
     geom_hline(yintercept = -log10(0.05), linetype="dashed") +
     annotation_custom(grob) +
-    labs(title = paste(knock, temp, "C, t =", t),
+    labs(title = paste(knock, temp, "C, t =", t, "min"),
          color = "Significance")
   return(p)
 }
@@ -148,14 +147,14 @@ labeling and highlighting IDP proteins.
 for (row in 1:nrow(combs)) {
   plots[[row]] <- multiple_deseq_37(heatshock_counts,
                                  colData,
-                                 as.character(combs[row,"knockout"]),
+                                 as.character(combs[row,"genotype"]),
                                  combs[row,"temperature"],
                                  combs[row, "time"])
 }
 
 for (ind in seq_along(deseq_results)) {
   plots[[ind]] <- plot_res(deseq_results[[ind]],
-                           combs[ind, "knockout"],
+                           combs[ind, "genotype"],
                            combs[ind, "temperature"],
                            combs[ind, "time"])
 }

@@ -1,0 +1,84 @@
+---
+title: "XXX"
+author: "Tolga Tabanli"
+date: "2025-01-25"
+output: pdf_document
+knit: (function(input, encoding) {
+  rmarkdown::render(input,
+                    encoding = "UTF-8",
+                    output_dir = "/home/tolga/Desktop/IDPs_under_Heatshock/Knittings")})
+---
+
+```{r setup_enrichment, include=FALSE}
+# DONE
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/home/tolga/Desktop/IDPs_under_Heatshock/')
+```
+
+Functional enrichment analysis was done with help of g:Profiler interface
+gprofiler2. Dotplot was implemented using ggplot to facilitate query management,
+as a direct conversion of gost() results to other packages such enrich was not
+successful (multiquery requests would cause problems, another option would be
+to vertically add results of single queries).
+
+First, a function was defined the underlying dotplot data which are
+the enrichment data for up and down regulation (reg) in each condition
+(subdeseq), resulting in 16 sets.
+
+```{r, message=F}
+dotplot_updown <- function(sub_deseq, reg) {
+  xdirection <- sub_deseq %>%
+    filter(direction == reg & idp) %>%
+    pull(rowname)
+  multi_gp = gost(query = xdirection,
+                  organism = "scerevisiae",
+                  multi_query = FALSE, evcodes = TRUE)
+  gp_mod = multi_gp$result[,c("query", "source", "term_id",
+                              "term_name", "p_value", "query_size", 
+                              "intersection_size", "term_size", 
+                              "effective_domain_size", "intersection")]
+  gp_mod$GeneRatio = gp_mod$intersection_size / gp_mod$query_size
+  gp_mod$BgRatio = paste0(gp_mod$term_size, "/", gp_mod$effective_domain_size)
+  names(gp_mod) = c("Cluster", "Category", "ID", "Description", "p.adjust", 
+                    "query_size", "Count", "term_size", "effective_domain_size", 
+                    "geneID", "GeneRatio", "BgRatio")
+  gp_mod$geneID = gsub(",", "/", gp_mod$geneID)
+  return(gp_mod)
+}
+```
+
+Finally, the function was called for each condition in a for loop,
+with plots saved and then arranged in a grid.
+Importantly, I sort the gost() result according to increasing
+term_size and decreasing Count, to get more specific terms that
+are shared by as most of the genes as possible.
+Here, only the GO-IDs are plotted due to size issues.
+While concentrating on Wildtypes, the filter that was commented out
+was also carried out.
+
+```{r, message=F, fig.height=10}
+dot_data <- list()
+expr_names <- names(expr_direction)
+for (cond in seq_along(expr_direction)*2) {
+  label <- expr_names[[cond/2]]
+  dot_data[[cond - 1]] <- dotplot_updown(expr_direction[[cond/2]], "Up") %>%
+    mutate(Cluster = paste0(label, "_", "Up"))
+  dot_data[[cond]] <- dotplot_updown(expr_direction[[cond/2]], "Down") %>%
+    mutate(Cluster = paste0(label, "_", "Down"))
+}
+
+dot_data %>%
+  map(filter, Category %in% c("GO:MF", "GO:BP", "GO:CC")) %>%
+  map(arrange, term_size, desc(Count)) %>%
+  map(slice_head, n = 10) %>%
+  bind_rows() %>%
+  #filter(str_starts(Cluster, "Wildtype")) %>%
+  ggplot(aes(x = Cluster, y = ID, size = Count, color = p.adjust)) +
+  geom_point() +
+  scale_size_continuous(range = c(3, 12)) +
+  scale_color_gradient(low = "blue", high = "red") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=90, hjust=1, vjust=1)) +
+  labs(x = "Cluster", y = "Enrichment Term", title = "Gene Enrichment Analysis") +
+  facet_wrap(Category ~ ., scales = "free_y", ncol = 1)
+```

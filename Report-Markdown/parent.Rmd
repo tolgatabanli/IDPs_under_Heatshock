@@ -1,7 +1,7 @@
 ---
-title: "parent"
+title: "Supporting Code for Analysis and Visualization"
 author: "Tolga Tabanli"
-date: "2025-01-25"
+date: "2025-02-15"
 knit: (function(input, encoding) {
   rmarkdown::render(input,
                     encoding = "UTF-8",
@@ -15,6 +15,18 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = '/home/tolga/Desktop/IDPs_under_Heatshock/Report-Markdown')
 ```
+
+# *Readme*
+
+This document is an extensive summary of the main code snippets that
+were used for the processing of RNAseq count data and the following
+plot generation procedure.
+Many code sections were omitted that were used for exploration,
+trial-and-errors, accession mapping, and of course the Python code.
+Python code can be accessed in
+[GitHub Page](https://github.com/tolgatabanli/IDPs_under_Heatshock).
+Plots used in the IDP Selection were also omitted for conciseness, and
+can again be accessed in the GitHub page.
 
 # IDP Decision
 
@@ -32,11 +44,13 @@ knitr::opts_knit$set(root.dir = '/home/tolga/Desktop/IDPs_under_Heatshock/Report
 
 # Comparison of Differential Expressions
 
-```{r child="comparison.Rmd}
+```{r child="comparison.Rmd"}
 ```
 
+# Functional Enrichment Analysis
 
-# Gene Enrichment
+```{r child="enrichment.Rmd"}
+```
 
 # Session Info
 
